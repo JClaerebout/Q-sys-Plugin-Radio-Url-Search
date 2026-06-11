@@ -49,6 +49,12 @@ This plugin does not define configurable plugin properties.
 | --- | --- | --- |
 | `StrSearch` | Text | Station name search text |
 
+#### Outputs
+
+| Control | Type | Description |
+| --- | --- | --- |
+| `NowPlaying` | Text Indicator | Shows the selected or restored station name |
+
 #### Internal / UI Controls
 
 These controls are used inside the plugin UI and are not exposed as user pins:
@@ -58,7 +64,6 @@ These controls are used inside the plugin UI and are not exposed as user pins:
 | `ReceiverComponent` | ComboBox | Selects the Q-SYS URL Receiver component that will receive the stream URL |
 | `Country_Code` | ComboBox | Selects the country used to filter station searches |
 | `StrSearchResult` | ListBox | Displays matching radio stations returned by the search |
-| `NowPlaying` | Text Indicator | Shows the selected or restored station name |
 | `code` | Text | Plugin code/debug text control |
 
 ---

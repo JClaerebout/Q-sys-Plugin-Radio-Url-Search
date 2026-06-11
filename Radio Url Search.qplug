@@ -119,7 +119,8 @@ function GetControls(props)
         ControlType = "Indicator",
         IndicatorType = "Text",
         Count = 1,
-        UserPin = false
+        PinStyle = "Output",
+        UserPin = true
     })
 
     return ctls
