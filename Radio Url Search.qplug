@@ -1,0 +1,532 @@
+PluginInfo = {
+	-- Use a tilde (~) to seperate the name into a folder
+    Name = "Radio Url Search",
+	-- Use semantic versioning
+    Version = "1.0.0",
+	-- Use a GUID for the Id (Note: Avoid changing the Id for a plugin once it is set)
+    Id = "ec2efe7f-9127-4081-8b07-90ee9e526dda",
+	-- The square brackets allow for a multi-line string
+    Description = [[Search for a radio stations streaming URL by name and country using the Radio Browser API.]],
+    Author = "Jens Claerebout",
+    ShowDebug = true
+}
+
+------------------------------- Global Variables ------------------------------
+COLORS = { 
+	["OK"] = "#00FF00",
+	[0] = "#00FF00",
+	["COMPROMISED"] = "orange",
+	[1] = "orange",
+	["FAULT"] = "red",
+	[2] = "red",
+	["NOT_PRESENT"] = "gray",
+	[3] = "gray",
+	["MISSING"] = "darkred",
+	[4] = "darkred",
+	["INITIALIZING"] = "blue",
+	[5] = "blue",
+	["GREEN"] = "#00ff00",
+	["RED"] = "#ff0000",
+	["ORANGE"] = "#ffa500",
+	["GRAY"] = "#7c7c7c",
+	["DARK_GREEN"] = "#007C00",
+}
+
+STATUS_VALUES = {
+	["OK"] = 0,
+	["COMPROMISED"] = 1,
+	["FAULT"] = 2,
+	["NOT_PRESENT"] = 3,
+	["MISSING"] = 4,
+	["INITIALIZING"] = 5,
+}
+
+ENABLE_CODE_PIN = true
+
+--------------------------------- Properties ----------------------------------
+function GetProperties()
+    local props = { }
+
+    return props
+end
+
+--Modify visibility based on other properties
+--[[
+    Example: 
+    if props["propertyName"].Value == "DHCP" then
+        props["someStaticIPRelatedProperty"].IsHidden = true
+    else
+        props["someStaticIPRelatedProperty"].IsHidden = false
+]]--
+function RectifyProperties(props)
+    return props
+end
+
+------------------------- Plugin Block Name and Color -------------------------
+function GetPrettyName(props)
+    return PluginInfo["Name"] .. " v" .. PluginInfo["Version"]
+end
+
+function GetColor(props)
+	return ConvertColor("#cccccc")
+end
+
+---------------------------------- Controls -----------------------------------
+function GetControls(props)
+    local ctls = { }
+
+	if ENABLE_CODE_PIN then
+		table.insert(ctls, {
+            Name = "code",
+            ControlType = "Text",
+            Count = 1,
+            PinStyle = "Input",
+            UserPin = true
+        })
+	end
+
+    table.insert(ctls, {
+        Name = "StrSearch",
+        ControlType = "Text",
+        Count = 1,
+        PinStyle = "Input",
+        UserPin = true
+    })
+
+    table.insert(ctls, {
+        Name = "StrSearchResult",
+        ControlType = "Text",
+        Count = 1,
+        UserPin = false
+    })
+
+    table.insert(ctls, {
+        Name = "Country_Code",
+        ControlType = "Text",
+        Count = 1,
+        UserPin = false
+    })
+
+    table.insert(ctls, {
+        Name = "ReceiverComponent",
+        ControlType = "Text",
+        Count = 1,
+        UserPin = false
+    })
+
+    table.insert(ctls, {
+        Name = "NowPlaying",
+        ControlType = "Indicator",
+        IndicatorType = "Text",
+        Count = 1,
+        UserPin = false
+    })
+
+    return ctls
+end
+
+------------------------------- Control Layout --------------------------------
+function GetControlLayout(props)
+	-- Uncomment the next line if you are using multiple pages
+	--local currentPage = props["page_index"].Value
+
+    local layout = { }
+
+	if ENABLE_CODE_PIN then
+		layout["code"] = 
+		{
+			PrettyName = "Code",
+			Style = "None"
+		}
+	end
+
+    layout["StrSearch"] = 
+    {
+        PrettyName = "String Search",
+        Position = { 79,202 },
+        Size = { 430,30 },
+        Style = "Text",
+        TextFontSize = 15,
+        HtextAlign = "Center",
+    }
+    layout["StrSearchResult"] = 
+    {
+        PrettyName = "String Search Result",
+        Position = { 79,286 },
+        Size = { 430,267 },
+        Style = "ListBox",
+        TextFontSize = 15,
+        HtextAlign = "Center",
+    }
+    layout["ReceiverComponent"] = 
+    {
+        PrettyName = "Receiver Component",
+        Position = { 79,61 },
+        Size = { 430,30 },
+        Style = "ComboBox",
+        TextFontSize = 15,
+        HtextAlign = "Center",
+    }
+    layout["Country_Code"] = 
+    {
+        PrettyName = "Country Select",
+        Position = { 79,132 },
+        Size = { 430,30 },
+        Style = "ComboBox",
+        TextFontSize = 15,
+        HtextAlign = "Center",
+    }
+    layout["NowPlaying"] = 
+    {
+        PrettyName = "Now Playing",
+        Position = { 79,615 },
+        Size = { 430,30 },
+        Style = "Text",
+        TextFontSize = 15,
+        HtextAlign = "Center",
+    }
+
+    local graphics = { }
+        
+
+    table.insert(graphics, {
+        Type = "GroupBox",
+        Position = { 14,14 },
+        Size = {559,663},
+        StrokeColor = "black",
+        StrokeWidth = 2,
+        CornerRadius = 10,
+    })
+
+    table.insert(graphics, {
+        Type = "Label",
+        Position = { 79,31 },
+        Size = {430,30},
+        Text = "Select Media Stream Receiver:",
+        TextSize = 20,
+        HTextAlign = "Center"
+    })
+    table.insert(graphics, {
+        Type = "Label",
+        Position = { 79,102 },
+        Size = {430,30},
+        Text = "Select country:",
+        TextSize = 20,
+        HTextAlign = "Center"
+    })
+    table.insert(graphics, {
+        Type = "Label",
+        Position = { 79,173 },
+        Size = {430,30},
+        Text = "Search radio station:",
+        TextSize = 20,
+        HTextAlign = "Center"
+    })
+    table.insert(graphics, {
+        Type = "Label",
+        Position = { 79,256 },
+        Size = {430,30},
+        Text = "Results:",
+        TextSize = 20,
+        HTextAlign = "Center"
+    })
+    table.insert(graphics, {
+        Type = "Label",
+        Position = { 79,585 },
+        Size = {430,30},
+        Text = "Now playing:",
+        TextSize = 20,
+        HTextAlign = "Center"
+    })
+
+    return layout, graphics
+end
+
+---------------------------- Other Plugin Functions ---------------------------
+
+function GetPins(props)
+	local pins = { }
+  
+	return pins
+end
+--[[ Uncomment if you need multiple pages (tabs)
+--Current page number can be retrieved in other functions as props["page_index"].Value
+function GetPages(props)
+    local pages = {}
+
+    return pages
+end
+]]
+function GetComponents(props)
+	local components = { }
+
+	return components
+end
+
+function GetWiring(props)
+	local wiring = { }
+  
+	return wiring
+end
+
+------------------------------ Local Functions --------------------------------
+function HEXtoDEC(hex)
+	hex = string.upper(hex)
+	local b1 = string.byte(string.sub(hex, 1, 1))
+	local b2 = string.byte(string.sub(hex, 2, 2))
+  
+	return( (b1<=57 and b1-48 or b1-55)*16 + (b2<=57 and b2-48 or b2-55) )
+end
+
+function ConvertColor(c)
+	local t = {}
+	t[1] = HEXtoDEC(string.sub(c,2,3))
+	t[2] = HEXtoDEC(string.sub(c,4,5))
+	t[3] = HEXtoDEC(string.sub(c,6,7))
+	return t
+end
+
+function funcGetRadio(tbl, code, data, err, headers)
+    print(string.format(
+        "HTTP response from '%s': Return Code=%i; Error=%s",
+        tbl.Url, code, err or "None"
+    ))
+
+    if code ~= 200 then
+        Timer.CallAfter(funcSearchRadio, 1)
+        return
+    end
+
+    local radios = rapidjson.decode(data)
+    if not radios then return end
+
+    local stationMap = {}   -- key = normalized name
+    stations = {}           -- final array
+    local choices = {}
+
+    -- Deduplicate by name, keep highest clickcount
+    for _, station in ipairs(radios) do
+        local name = station.name or "Unknown"
+        local url  = station.url_resolved or station.url
+        local clickcount = station.clickcount or 0
+
+        -- normalize name for comparison
+        local key = string.lower(name)
+
+        if not stationMap[key] or clickcount > stationMap[key].clickcount then
+            stationMap[key] = {
+                name = name,
+                url  = url,
+                clickcount = clickcount
+            }
+        end
+    end
+
+    -- Convert map → array
+    for _, s in pairs(stationMap) do
+        table.insert(stations, s)
+    end
+
+    -- Optional: sort by popularity
+    table.sort(stations, function(a, b)
+        return a.clickcount > b.clickcount
+    end)
+
+    -- Build UI choices
+    for i, s in ipairs(stations) do
+        choices[i] = s.name
+    end
+
+    -- Push to ListBox / ComboBox
+    Controls.StrSearchResult.Choices = choices
+
+    if #choices > 0 then
+        Controls.StrSearchResult.Value = 1
+    end
+end
+
+countryCodeByName = {}
+
+function funcSearchRadio()
+    local choices = {"Searching..."}
+    Controls.StrSearchResult.Choices = choices
+
+    local search = string.gsub(strSearch.String, " ", "+")
+    local countryCode = selectedCountryCode or "BE"
+
+    local url = string.format(
+        "https://de1.api.radio-browser.info/json/stations/search?name=%s&countrycode=%s&limit=20&hidebroken=true&order=name",
+        search,
+        countryCode
+    )
+
+    HttpClient.Get{Url = url, Timeout = 10, EventHandler = funcGetRadio}
+end
+
+function funcParceCountryCodes(tbl, code, data, err, headers)
+    print(string.format(
+        "HTTP response from '%s': Return Code=%i; Error=%s",
+        tbl.Url, code, err or "None"
+    ))
+
+    local countries = rapidjson.decode(data)
+
+    local choices = {}
+
+    for _, country in ipairs(countries) do
+        if country.name and country.iso_3166_1 then
+            table.insert(choices, country.name)
+            countryCodeByName[country.name] = country.iso_3166_1
+        end
+    end
+
+    table.sort(choices)
+
+    Controls.Country_Code.Choices = choices
+
+    selectedCountryCode = countryCodeByName[Controls.Country_Code.String]
+end
+
+function funcGetCountryCodes()
+  url = "https://de1.api.radio-browser.info/json/countries"
+  HttpClient.Get{Url = url, Timeout = 30, EventHandler = funcParceCountryCodes}
+end 
+
+function urlEncode(str)
+    if not str then return "" end
+
+    return string.gsub(str, "([^%w%-_%.~])", function(c)
+        return string.format("%%%02X", string.byte(c))
+    end)
+end
+
+function funcRestoreNowPlaying(tbl, code, data, err, headers)
+    print(string.format(
+        "Restore response: Return Code=%i; Error=%s",
+        code,
+        err or "None"
+    ))
+
+    if code ~= 200 then
+        return
+    end
+
+    local stations = rapidjson.decode(data)
+
+    if stations and stations[1] and stations[1].name then
+        Controls.NowPlaying.String = stations[1].name
+        print("Restored station: " .. stations[1].name)
+    end
+end
+
+function funcGetCurrentStation()
+    if not selectedreceiver or not selectedreceiver["url"] then
+        return
+    end
+
+    local streamUrl = selectedreceiver["url"].String
+
+    if streamUrl == nil or streamUrl == "" then
+        return
+    end
+
+    local lookupUrl =
+        "https://de1.api.radio-browser.info/json/stations/byurl?url="
+        .. urlEncode(streamUrl)
+
+    print("Looking up station: " .. lookupUrl)
+
+    HttpClient.Get{
+        Url = lookupUrl,
+        Timeout = 10,
+        EventHandler = funcRestoreNowPlaying
+    }
+end
+
+------------------------------- Runtime Logic ---------------------------------
+
+if Controls then
+------------------------------------ Objects ----------------------------------
+
+
+-------------------------------- Initialization -------------------------------
+function Initialize()
+	-- Do initialization stuff here
+    rapidjson = require("rapidjson")
+
+    strSearch = Controls.StrSearch
+
+    Components = Component.GetComponents()
+    URLReceiverComponents = {}
+    countryCodeByName = {}
+
+    for key,value in pairs(Components) do
+        if value.Type == "URL_receiver" then 
+            table.insert(URLReceiverComponents,value.Name)
+        end 
+    end
+
+    Controls.ReceiverComponent.Choices = URLReceiverComponents
+
+    selectedreceiver =  Component.New(Controls.ReceiverComponent.String)
+
+    Controls.ReceiverComponent.EventHandler = function()
+        selectedreceiver =  Component.New(Controls.ReceiverComponent.String)
+    end 
+
+    strSearch.EventHandler = function()
+        strSearch.String = string.gsub(strSearch.String, "\r\n", "")
+        funcSearchRadio()
+        if string.find(strSearch.String, "\r") then 
+        end 
+    end 
+
+    Controls.Country_Code.EventHandler = function(ctrl)
+        local selectedCountryName = ctrl.String
+
+        selectedCountryCode = countryCodeByName[selectedCountryName]
+
+        print("Selected country: " .. tostring(selectedCountryName))
+        print("Selected country code: " .. tostring(selectedCountryCode))
+
+        Controls.StrSearch.String = ""
+        Controls.StrSearchResult.Choices = {}
+    end
+
+    Controls.StrSearchResult.EventHandler = function()
+        for i,v in ipairs(Controls.StrSearchResult.Choices) do
+            if Controls.StrSearchResult.String == stations[i].name then 
+                selectedreceiver["url"].String = stations[i].url
+                Controls.NowPlaying.String = stations[i].name
+            end 
+        end
+    end
+
+    Controls.StrSearch.String = ""
+
+    choices = {}
+    Controls.StrSearchResult.Choices = choices
+
+    funcGetCountryCodes()
+
+    Timer.CallAfter(function()
+        funcGetCurrentStation()
+    end, 2)
+
+end
+
+local canInitialize = true
+
+-- Check Properties and other stuff for illegal values
+
+if canInitialize then
+	print("Initializing")
+	Initialize()
+	print("Initialization Complete")
+else
+	print("Not initializing")
+end
+
+-- Nothing should be done after this point
+
+end	--if Controls 
