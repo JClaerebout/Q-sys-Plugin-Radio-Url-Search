@@ -12,7 +12,11 @@ The plugin uses the public Radio Browser API to retrieve countries and station r
 
 - Search internet radio stations by name
 - Filter station searches by country
-- Retrieve up to 20 matching stations
+- Configure between 1 and 40 visual station results
+- Display up to 10 stations per result page in a two-column grid
+- Show station favicons in search results and the now-playing area
+- Filter searches across all countries or by a selected country
+- Ignore stale responses when a newer search has started
 - Hide broken stations from search results
 - Select an existing Q-SYS URL Receiver component
 - Write the selected station stream URL to the URL Receiver
@@ -26,7 +30,7 @@ The plugin uses the public Radio Browser API to retrieve countries and station r
 | Property | Value |
 | --- | --- |
 | Name | Radio Url Search |
-| Version | 1.0.0 |
+| Version | 2.0.0 |
 | Author | Jens Claerebout |
 | Protocol | HTTPS / Radio Browser API |
 | Required Q-SYS Component | URL Receiver |
@@ -37,7 +41,9 @@ The plugin uses the public Radio Browser API to retrieve countries and station r
 
 ### Properties
 
-This plugin does not define configurable plugin properties.
+| Property | Type | Default | Range | Description |
+| --- | --- | --- | --- | --- |
+| `Result Count` | Integer | 20 | 1-40 | Sets the number of visual station result controls and creates one result page per group of 10 |
 
 ---
 
@@ -63,20 +69,25 @@ These controls are used inside the plugin UI and are not exposed as user pins:
 | --- | --- | --- |
 | `ReceiverComponent` | ComboBox | Selects the Q-SYS URL Receiver component that will receive the stream URL |
 | `Country_Code` | ComboBox | Selects the country used to filter station searches |
-| `StrSearchResult` | ListBox | Displays matching radio stations returned by the search |
+| `StrSearchResult` | ListBox | Displays matching radio stations on the Search page |
+| `favicon` | Text Indicator / Media Display (1-40) | Shows station artwork for each configured result |
+| `Name` | Text Indicator (1-40) | Shows the word-wrapped station name for each configured result |
+| `SelectBtn` | Trigger (1-40) | Selects the corresponding configured station result |
+| `NowPlayingFavicon` | Text Indicator / Media Display | Shows artwork for the active station |
 | `code` | Text | Plugin code/debug text control |
 
 ---
 
 ## UI Layout
 
-The plugin UI contains a single page with:
+The plugin UI contains a Search page plus dynamically generated Results pages with:
 
 - URL Receiver component selection
 - Country selection
 - Station search field
-- Search result list
-- Now playing display
+- Search result list on page 1
+- Result pages starting at page 2, with up to 10 artwork tiles per page
+- Now-playing station name and artwork
 
 ---
 
@@ -98,9 +109,9 @@ Searches are sent with:
 
 - station name from `StrSearch`
 - selected country code from `Country_Code`
-- result limit of 20 stations
+- up to the configured number of displayed results, selected from a larger API response
 - broken stations hidden
-- results ordered by station name
+- displayed results ranked by Radio Browser click count
 
 ---
 
@@ -129,7 +140,8 @@ Typing in the search field triggers a Radio Browser station search. While search
 
 When results are returned:
 
-- station names are shown in the result list
+- station names remain available in the page 1 result list
+- station names and favicons are also shown across the paged result grids
 - selecting a station writes that station's stream URL to the selected URL Receiver component
 - `NowPlaying` is updated with the selected station name
 
@@ -159,7 +171,7 @@ selected URL Receiver -> url
 
 - An internet connection is required for Radio Browser API access
 - The plugin uses the `de1.api.radio-browser.info` Radio Browser server
-- Search defaults to country code `BE` until a country is selected
+- Country selection defaults to `All`
 - Only Q-SYS components of type `URL_receiver` are listed in the receiver dropdown
 - The URL Receiver component must have a writable `url` control and have script acces
 
@@ -167,7 +179,7 @@ selected URL Receiver -> url
 
 ## Known Limitations
 
-- Search results are limited to 20 stations
+- Search results are limited to the configured 1-40 visible stations
 
 ---
 
