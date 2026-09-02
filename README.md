@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **Radio URL Search Q-SYS Plugin** searches online radio stations and sends the selected stream URL to a Q-SYS URL Receiver component.
+The **Radio URL Search Q-SYS Plugin** searches online radio stations and sends the selected stream URL to a Q-SYS Media Stream Receiver component.
 
 The plugin uses the public Radio Browser API to retrieve countries and station results. It is designed as a simple operator tool for finding internet radio streams by country and station name directly inside Q-SYS.
 
@@ -18,10 +18,10 @@ The plugin uses the public Radio Browser API to retrieve countries and station r
 - Filter searches across all countries or by a selected country
 - Ignore stale responses when a newer search has started
 - Hide broken stations from search results
-- Select an existing Q-SYS URL Receiver component
-- Write the selected station stream URL to the URL Receiver
+- Select an existing Q-SYS Media Stream Receiver component
+- Write the selected station stream URL to the Media Stream Receiver
 - Show the selected station as now playing
-- Restore the now-playing station name from the current URL Receiver stream URL
+- Restore the now-playing station name from the current Media Stream Receiver stream URL
 
 ---
 
@@ -33,7 +33,7 @@ The plugin uses the public Radio Browser API to retrieve countries and station r
 | Version | 2.0.0 |
 | Author | Jens Claerebout |
 | Protocol | HTTPS / Radio Browser API |
-| Required Q-SYS Component | URL Receiver |
+| Required Q-SYS Component | Media Stream Receiver |
 
 ---
 
@@ -67,7 +67,7 @@ These controls are used inside the plugin UI and are not exposed as user pins:
 
 | Control | Type | Description |
 | --- | --- | --- |
-| `ReceiverComponent` | ComboBox | Selects the Q-SYS URL Receiver component that will receive the stream URL |
+| `ReceiverComponent` | ComboBox | Selects the Q-SYS Media Stream Receiver component that will receive the stream URL |
 | `Country_Code` | ComboBox | Selects the country used to filter station searches |
 | `StrSearchResult` | ListBox | Displays matching radio stations on the Search page |
 | `favicon` | Text Indicator / Media Display (1-40) | Shows station artwork for each configured result |
@@ -82,7 +82,7 @@ These controls are used inside the plugin UI and are not exposed as user pins:
 
 The plugin UI contains a Search page plus dynamically generated Results pages with:
 
-- URL Receiver component selection
+- Media Stream Receiver component selection
 - Country selection
 - Station search field
 - Search result list on page 1
@@ -142,28 +142,29 @@ When results are returned:
 
 - station names remain available in the page 1 result list
 - station names and favicons are also shown across the paged result grids
-- selecting a station writes that station's stream URL to the selected URL Receiver component
+- selecting a station writes that station's stream URL to the selected Media Stream Receiver component
 - `NowPlaying` is updated with the selected station name
 
-### URL Receiver Integration
+### Media Stream Receiver Integration
 
 The plugin expects the selected receiver component to expose a `url` control. When a station is selected, the plugin writes the station stream URL to:
 
 ```text
-selected URL Receiver -> url
+selected Media Stream Receiver -> url
 ```
 
 ---
 
 ## Installation
 
-1. Add a Q-SYS URL Receiver component to your design
-2. Add the Radio URL Search plugin to your design
-3. Deploy to the Core
-4. Select the URL Receiver component in the plugin UI
-5. Select a country
-6. Search for a station name
-7. Select a station from the result list
+1. Add a Q-SYS Media Stream Receiver component to your design from Inventory -> Streaming I/O
+2. Give the Media Stream Receiver Script acces.
+3. Add the Radio URL Search plugin to your design
+4. Deploy to the Core
+5. Select the Media Stream Receiver component in the plugin UI
+6. Select a country
+7. Search for a station name
+8. Select a station from the result list
 
 ---
 
@@ -172,8 +173,8 @@ selected URL Receiver -> url
 - An internet connection is required for Radio Browser API access
 - The plugin uses the `de1.api.radio-browser.info` Radio Browser server
 - Country selection defaults to `All`
-- Only Q-SYS components of type `URL_receiver` are listed in the receiver dropdown
-- The URL Receiver component must have a writable `url` control and have script acces
+- Only Q-SYS components of type `Media_Stream_receiver` are listed in the receiver dropdown
+- The Media Stream Receiver component must have a writable `url` control and have script acces
 
 ---
 
@@ -187,6 +188,7 @@ selected URL Receiver -> url
 
 - Add favorites or presets
 - Add clearer UI feedback for failed searches or unavailable API responses
+- Integrate Media_Stream_Receiver into the plugin
 
 ---
 
