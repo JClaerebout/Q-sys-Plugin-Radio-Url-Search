@@ -30,7 +30,7 @@ The plugin uses the public Radio Browser API to retrieve countries and station r
 | Property | Value |
 | --- | --- |
 | Name | Radio Url Search |
-| Version | 2.0.0 |
+| Version | 3.0.0 |
 | Author | Jens Claerebout |
 | Protocol | HTTPS / Radio Browser API |
 | Required Q-SYS Component | Media Stream Receiver |
@@ -44,6 +44,7 @@ The plugin uses the public Radio Browser API to retrieve countries and station r
 | Property | Type | Default | Range | Description |
 | --- | --- | --- | --- | --- |
 | `Result Count` | Integer | 20 | 1-40 | Sets the number of visual station result controls and creates one result page per group of 10 |
+| `Enable Favicon Pages` | Boolean | false | true/false | Shows the favicon result pages and now-playing artwork. When disabled, only the Search page is shown and the now-playing name expands across the artwork area. |
 
 ---
 
@@ -80,14 +81,14 @@ These controls are used inside the plugin UI and are not exposed as user pins:
 
 ## UI Layout
 
-The plugin UI contains a Search page plus dynamically generated Results pages with:
+The plugin UI always contains a Search page. When `Enable Favicon Pages` is enabled, it also includes dynamically generated Results pages with:
 
 - Media Stream Receiver component selection
 - Country selection
 - Station search field
 - Search result list on page 1
 - Result pages starting at page 2, with up to 10 artwork tiles per page
-- Now-playing station name and artwork
+- Now-playing station name and optional artwork
 
 ---
 
@@ -189,6 +190,28 @@ selected Media Stream Receiver -> url
 - Add favorites or presets
 - Add clearer UI feedback for failed searches or unavailable API responses
 - Integrate Media_Stream_Receiver into the plugin
+
+---
+
+## Changelog
+
+### 3.0.0 - 2026-09-02
+
+- Embedded the Q-SYS Media Stream Receiver in the plugin.
+- Added receiver status, network interface selection, and stereo audio output pins.
+- Added the `Enable Favicon Pages` property. Favicons do not always load reliably in UCI, so they are disabled by default.
+
+### 2.0.0 - 2026-08-25
+
+- Added configurable visual result counts from 1 to 40.
+- Added paged station results with names, artwork, and selection buttons.
+- Added country filtering and improved asynchronous search handling.
+- Added now-playing artwork and station restoration from the receiver URL.
+
+### 1.0.0 - 2026-06-11
+
+- Initial release with Radio Browser search and receiver URL control.
+- Added the `NowPlaying` output pin.
 
 ---
 

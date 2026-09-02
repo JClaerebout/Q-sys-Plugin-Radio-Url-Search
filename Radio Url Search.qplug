@@ -2,7 +2,7 @@ PluginInfo = {
 	-- Use a tilde (~) to seperate the name into a folder
     Name = "Radio Url Search",
 	-- Use semantic versioning
-    Version = "2.0.0",
+    Version = "3.0.0",
 	-- Use a GUID for the Id (Note: Avoid changing the Id for a plugin once it is set)
     Id = "ec2efe7f-9127-4081-8b07-90ee9e526dda",
 	-- The square brackets allow for a multi-line string
@@ -48,12 +48,27 @@ RESULTS_PER_PAGE = 10
 function GetProperties()
     local props = {
         {
+            Name = "Name",
+            Type = "string",
+            Value = "Radio Url Search"
+        },
+        {
+            Name = "Location",
+            Type = "string",
+            Value = "Default Location"
+        },
+        {
             Name = "Result Count",
             Type = "integer",
             Value = 20,
             Min = 1,
             Max = 40,
-        }
+        },
+        {
+            Name = "Enable Favicon Pages",
+            Type = "boolean",
+            Value = false,
+        },
     }
 
     return props
@@ -124,6 +139,22 @@ function GetControls(props)
     })
 
     table.insert(ctls, {
+        Name = "ReceiverStatus",
+        ControlType = "Indicator",
+        IndicatorType = "Status",
+        Count = 1,
+        PinStyle = "Output",
+        UserPin = true
+    })
+
+    table.insert(ctls, {
+        Name = "interface",
+        ControlType = "Text",
+        Count = 1,
+        UserPin = false
+    })
+
+    table.insert(ctls, {
         Name = "NowPlaying",
         ControlType = "Indicator",
         IndicatorType = "Text",
@@ -173,6 +204,7 @@ function GetControlLayout(props)
     local graphics = { }
     local currentPage = props["page_index"].Value
     local resultCount = props["Result Count"].Value
+    local faviconPagesEnabled = props["Enable Favicon Pages"].Value
 
     if ENABLE_CODE_PIN then
         layout["code"] =
@@ -186,7 +218,7 @@ function GetControlLayout(props)
         layout["StrSearch"] =
         {
             PrettyName = "String Search",
-            Position = { 79,202 },
+            Position = { 79,274 },
             Size = { 430,30 },
             Style = "Text",
             TextFontSize = 15,
@@ -196,13 +228,15 @@ function GetControlLayout(props)
         layout["StrSearchResult"] =
         {
             PrettyName = "String Search Result",
-            Position = { 79,286 },
-            Size = { 430,267 },
+            Position = { 79,375 },
+            Size = { 430,178 },
             Style = "ListBox",
             TextFontSize = 15,
             HTextAlign = "Center",
             CornerRadius = 8,
         }
+        -- Previous external receiver selector layout.
+        --[[
         layout["ReceiverComponent"] =
         {
             PrettyName = "Receiver Component",
@@ -213,10 +247,31 @@ function GetControlLayout(props)
             HTextAlign = "Center",
             CornerRadius = 8,
         }
+        ]]
+        layout["ReceiverStatus"] =
+        {
+            PrettyName = "Media Stream Receiver Status",
+            Position = { 79,61 },
+            Size = { 430,30 },
+            Style = "Text",
+            TextFontSize = 15,
+            HTextAlign = "Center",
+            CornerRadius = 8,
+        }
+        layout["interface"] =
+        {
+            PrettyName = "Media Stream Receiver Interface",
+            Position = { 79,132 },
+            Size = { 430,30 },
+            Style = "ComboBox",
+            TextFontSize = 15,
+            HTextAlign = "Center",
+            CornerRadius = 8,
+        }
         layout["Country_Code"] =
         {
             PrettyName = "Country Select",
-            Position = { 79,132 },
+            Position = { 79,203 },
             Size = { 430,30 },
             Style = "ComboBox",
             TextFontSize = 15,
@@ -226,8 +281,8 @@ function GetControlLayout(props)
         layout["NowPlaying"] =
         {
             PrettyName = "Now Playing",
-            Position = { 204,619 },
-            Size = { 305,100 },
+            Position = faviconPagesEnabled and { 204,619 } or { 84,619 },
+            Size = faviconPagesEnabled and { 305,100 } or { 425,100 },
             Style = "Text",
             TextFontSize = 20,
             HTextAlign = "Center",
@@ -236,15 +291,18 @@ function GetControlLayout(props)
             TextColor = { 0,0,0 },
             StrokeWidth = 1,
         }
-        layout["NowPlayingFavicon"] =
-        {
-            PrettyName = "Now Playing Favicon",
-            Position = { 84,619 },
-            Size = { 100,100 },
-            Color = { 255,255,255,255 },
-            Style = "Media",
-            CornerRadius = 8,
-        }
+
+        if faviconPagesEnabled then
+            layout["NowPlayingFavicon"] =
+            {
+                PrettyName = "Now Playing Favicon",
+                Position = { 84,619 },
+                Size = { 100,100 },
+                Color = { 255,255,255,255 },
+                Style = "Media",
+                CornerRadius = 8,
+            }
+        end
 
         table.insert(graphics, {
             Type = "GroupBox",
@@ -258,7 +316,7 @@ function GetControlLayout(props)
             Type = "Label",
             Position = { 79,31 },
             Size = {430,30},
-            Text = "Select Media Stream Receiver:",
+            Text = "Media Stream Receiver status:",
             TextSize = 20,
             HTextAlign = "Center"
         })
@@ -266,7 +324,7 @@ function GetControlLayout(props)
             Type = "Label",
             Position = { 79,102 },
             Size = {430,30},
-            Text = "Select country:",
+            Text = "Select network interface:",
             TextSize = 20,
             HTextAlign = "Center"
         })
@@ -274,13 +332,21 @@ function GetControlLayout(props)
             Type = "Label",
             Position = { 79,173 },
             Size = {430,30},
+            Text = "Select country:",
+            TextSize = 20,
+            HTextAlign = "Center"
+        })
+        table.insert(graphics, {
+            Type = "Label",
+            Position = { 79,244 },
+            Size = {430,30},
             Text = "Search radio station:",
             TextSize = 20,
             HTextAlign = "Center"
         })
         table.insert(graphics, {
             Type = "Label",
-            Position = { 79,256 },
+            Position = { 79,345 },
             Size = {430,30},
             Text = "Results",
             TextSize = 20,
@@ -377,7 +443,16 @@ end
 ---------------------------- Other Plugin Functions ---------------------------
 
 function GetPins(props)
-	local pins = { }
+	local pins = {
+        {
+            Name = "Left",
+            Direction = "output",
+        },
+        {
+            Name = "Right",
+            Direction = "output",
+        }
+    }
   
 	return pins
 end
@@ -386,21 +461,41 @@ function GetPages(props)
         { name = "Search" }
     }
 
-    local resultPageCount = math.ceil(props["Result Count"].Value / RESULTS_PER_PAGE)
-    for page = 1, resultPageCount do
-        table.insert(pages, { name = "Results " .. page })
+    if props["Enable Favicon Pages"].Value then
+        local resultPageCount = math.ceil(props["Result Count"].Value / RESULTS_PER_PAGE)
+        for page = 1, resultPageCount do
+            table.insert(pages, { name = "Results " .. page })
+        end
     end
 
     return pages
 end
 function GetComponents(props)
-	local components = { }
+	local components = {
+        {
+            Name = "_Media_Stream_Receiver",
+            -- Component.GetComponents() identifies Media Stream Receiver as URL_receiver.
+            Type = "URL_receiver",
+            Properties = {
+                ["mode"] = "Stereo",
+                ["name"] = props["Name"].Value,
+                ["location"] = props["Location"].Value,
+            }
+        }
+    }
 
 	return components
 end
 
 function GetWiring(props)
-	local wiring = { }
+	local wiring = {
+        {
+            "_Media_Stream_Receiver Channel 1", "Left"
+        },
+        {
+            "_Media_Stream_Receiver Channel 2", "Right"
+        }
+    }
   
 	return wiring
 end
@@ -434,6 +529,8 @@ RESULT_COUNT = #Controls.favicon
 DEFAULT_FAVICON = "https://i.postimg.cc/D0K9R9C9/white-leeg.jpg"
 FALLBACK_FAVICON = "https://i.postimg.cc/ZYsFzy7J/radio.png"
 
+-- Previous logic: find and select a Media Stream Receiver from the design.
+--[[
 Components = Component.GetComponents()
 URLReceiverComponents = {}
 
@@ -459,6 +556,132 @@ setReceiver(Controls.ReceiverComponent.String)
 Controls.ReceiverComponent.EventHandler = function()
   setReceiver(Controls.ReceiverComponent.String)
 end
+]]
+
+-- GetComponents exposes embedded components in the runtime global table.
+selectedreceiver = _G["_Media_Stream_Receiver"]
+
+function updateReceiverStatus()
+  if not selectedreceiver then
+    Controls.ReceiverStatus.Value = 4
+    Controls.ReceiverStatus.String = "Embedded receiver unavailable"
+    return
+  end
+
+  local receiverStatus = selectedreceiver["status"]
+  if not receiverStatus then
+    Controls.ReceiverStatus.Value = 2
+    Controls.ReceiverStatus.String = "Receiver status control unavailable"
+    return
+  end
+
+  Controls.ReceiverStatus.Value = receiverStatus.Value
+  Controls.ReceiverStatus.String = receiverStatus.String
+end
+
+if not selectedreceiver then
+  print("Embedded Media Stream Receiver is unavailable")
+elseif not selectedreceiver["url"] then
+  print("Embedded Media Stream Receiver has no 'url' control")
+end
+
+if selectedreceiver and selectedreceiver["status"] then
+  selectedreceiver["status"].EventHandler = updateReceiverStatus
+end
+
+updateReceiverStatus()
+
+local InterfaceLookup = {}
+local foundInterfaces = {
+  ["LAN A"] = false,
+  ["LAN B"] = false
+}
+local interfaceChoices = {}
+
+for _, item in ipairs(Network.Interfaces() or {}) do
+  if item.Interface then
+    foundInterfaces[item.Interface] = item.Address or false
+  end
+end
+
+local function addInterfaceChoice(name)
+  local address = foundInterfaces[name]
+  local text
+
+  if address and address ~= "" then
+    text = name .. " (" .. address .. ")"
+  else
+    text = name .. " (no link)"
+  end
+
+  table.insert(interfaceChoices, text)
+  InterfaceLookup[text] = {
+    Name = name,
+    Address = address or nil
+  }
+end
+
+addInterfaceChoice("LAN A")
+addInterfaceChoice("LAN B")
+
+local additionalInterfaceNames = {}
+for name, _ in pairs(foundInterfaces) do
+  if name ~= "LAN A" and name ~= "LAN B" then
+    table.insert(additionalInterfaceNames, name)
+  end
+end
+table.sort(additionalInterfaceNames)
+
+for _, name in ipairs(additionalInterfaceNames) do
+  addInterfaceChoice(name)
+end
+
+Controls.interface.Choices = interfaceChoices
+
+local function syncInterfaceControl()
+  local receiverInterface = selectedreceiver and selectedreceiver["interface"]
+
+  if receiverInterface then
+    local currentName = receiverInterface.String
+    for text, interface in pairs(InterfaceLookup) do
+      if interface.Name == currentName then
+        Controls.interface.String = text
+        return
+      end
+    end
+  end
+
+  -- LAN A is the default when the receiver has no matching saved interface.
+  for text, interface in pairs(InterfaceLookup) do
+    if interface.Name == "LAN A" then
+      Controls.interface.String = text
+      if receiverInterface then
+        receiverInterface.String = "LAN A"
+      end
+      return
+    end
+  end
+end
+
+Controls.interface.EventHandler = function(ctrl)
+  local interface = InterfaceLookup[ctrl.String]
+  if not interface then
+    return
+  end
+
+  print("Interface:", interface.Name)
+  print("IP:", interface.Address or "No link")
+
+  if not selectedreceiver or not selectedreceiver["interface"] then
+    print("Cannot set interface: embedded Media Stream Receiver interface control is unavailable")
+    return
+  end
+
+  -- The receiver expects the interface name, not the UI label containing its IP.
+  selectedreceiver["interface"].String = interface.Name
+end
+
+syncInterfaceControl()
 
 function imageControlString(url)
   return rapidjson.encode({
@@ -544,14 +767,24 @@ end
 
 function selectStation(index)
   local station = stations[index]
-  if not station or not station.url or not selectedreceiver or not selectedreceiver["url"] then
+  if not station or not station.url then
+    return
+  end
+
+  Controls.NowPlaying.String = station.displayName or formatStationName(station.name)
+  setNowPlayingFavicon(station.displayFavicon or FALLBACK_FAVICON)
+  Controls.StrSearchResult.Value = index
+
+  if not selectedreceiver or not selectedreceiver["url"] then
+    print("Cannot tune station: embedded Media Stream Receiver is unavailable")
     return
   end
 
   selectedreceiver["url"].String = station.url
-  Controls.NowPlaying.String = station.displayName or formatStationName(station.name)
-  setNowPlayingFavicon(station.displayFavicon or FALLBACK_FAVICON)
-  Controls.StrSearchResult.Value = index
+
+  if selectedreceiver["enable"] then
+    selectedreceiver["enable"].Boolean = true
+  end
 end
 
 function convertFavicon(url)
