@@ -74,14 +74,6 @@ function GetProperties()
     return props
 end
 
---Modify visibility based on other properties
---[[
-    Example: 
-    if props["propertyName"].Value == "DHCP" then
-        props["someStaticIPRelatedProperty"].IsHidden = true
-    else
-        props["someStaticIPRelatedProperty"].IsHidden = false
-]]--
 function RectifyProperties(props)
     return props
 end
@@ -126,13 +118,6 @@ function GetControls(props)
 
     table.insert(ctls, {
         Name = "Country_Code",
-        ControlType = "Text",
-        Count = 1,
-        UserPin = false
-    })
-
-    table.insert(ctls, {
-        Name = "ReceiverComponent",
         ControlType = "Text",
         Count = 1,
         UserPin = false
@@ -195,6 +180,48 @@ function GetControls(props)
         UserPin = false
     })
 
+    for channel = 1, 2 do
+        local prefix = "channel." .. channel .. "."
+
+        table.insert(ctls, {
+            Name = prefix .. "gain",
+            ControlType = "Knob",
+            ControlUnit = "dB",
+            Min = -100,
+            Max = 20,
+            DefaultValue = 0,
+            PinStyle = "Both",
+            UserPin = true
+        })
+
+        table.insert(ctls, {
+            Name = prefix .. "invert",
+            ControlType = "Button",
+            ButtonType = "Toggle",
+            PinStyle = "Both",
+            UserPin = true
+        })
+
+        table.insert(ctls, {
+            Name = prefix .. "mute",
+            ControlType = "Button",
+            ButtonType = "Toggle",
+            PinStyle = "Both",
+            UserPin = true
+        })
+
+        table.insert(ctls, {
+            Name = prefix .. "peak.level",
+            ControlType = "Indicator",
+            IndicatorType = "Meter",
+            ControlUnit = "dB",
+            Min = -120,
+            Max = 43,
+            PinStyle = "Output",
+            UserPin = true
+        })
+    end
+
     return ctls
 end
 
@@ -235,19 +262,6 @@ function GetControlLayout(props)
             HTextAlign = "Center",
             CornerRadius = 8,
         }
-        -- Previous external receiver selector layout.
-        --[[
-        layout["ReceiverComponent"] =
-        {
-            PrettyName = "Receiver Component",
-            Position = { 79,61 },
-            Size = { 430,30 },
-            Style = "ComboBox",
-            TextFontSize = 15,
-            HTextAlign = "Center",
-            CornerRadius = 8,
-        }
-        ]]
         layout["ReceiverStatus"] =
         {
             PrettyName = "Media Stream Receiver Status",
@@ -360,6 +374,105 @@ function GetControlLayout(props)
             TextSize = 20,
             HTextAlign = "Center"
         })
+
+        table.insert(graphics, {
+            Type = "GroupBox",
+            Position = { 590,14 },
+            Size = { 230,410 },
+            StrokeColor = "black",
+            StrokeWidth = 2,
+            CornerRadius = 8,
+        })
+        table.insert(graphics, {
+            Type = "Label",
+            Position = { 605,28 },
+            Size = { 200,30 },
+            Text = "Receiver Channels",
+            TextSize = 20,
+            HTextAlign = "Center"
+        })
+
+        for channel = 1, 2 do
+            local prefix = "channel." .. channel .. "."
+            local x = 675 + ((channel - 1) * 70)
+
+            table.insert(graphics, {
+                Type = "Label",
+                Position = { x,62 },
+                Size = { 55,24 },
+                Text = tostring(channel),
+                TextSize = 16,
+                HTextAlign = "Center"
+            })
+
+            layout[prefix .. "peak.level"] = {
+                PrettyName = "Channel " .. channel .. "~Peak Level",
+                Position = { x,100 },
+                Size = { 55,140 },
+                Style = "Meter",
+            }
+            layout[prefix .. "invert"] = {
+                PrettyName = "Channel " .. channel .. "~Invert",
+                Position = { x,260 },
+                Size = { 55,24 },
+                Style = "Button",
+                ButtonStyle = "Toggle",
+                OffColor = { 125,122,52 },
+                Color = { 255,246,96 },
+                UnlinkOffColor = true,
+            }
+            layout[prefix .. "mute"] = {
+                PrettyName = "Channel " .. channel .. "~Mute",
+                Position = { x,296 },
+                Size = { 55,24 },
+                Style = "Button",
+                ButtonStyle = "Toggle",
+                OffColor = { 105,16,25 },
+                Color = { 215,27,43 },
+                UnlinkOffColor = true,
+            }
+            layout[prefix .. "gain"] = {
+                PrettyName = "Channel " .. channel .. "~Gain",
+                Position = { x,338 },
+                Size = { 55,55 },
+                Style = "Knob",
+                ShowTextbox = true,
+            }
+        end
+
+        table.insert(graphics, {
+            Type = "Label",
+            Position = { 600,100 },
+            Size = { 68,140 },
+            Text = "Peak Level\n(dBFS)",
+            TextSize = 14,
+            HTextAlign = "Center",
+            VTextAlign = "Center"
+        })
+        table.insert(graphics, {
+            Type = "Label",
+            Position = { 600,260 },
+            Size = { 68,24 },
+            Text = "Invert",
+            TextSize = 14,
+            HTextAlign = "Right"
+        })
+        table.insert(graphics, {
+            Type = "Label",
+            Position = { 600,296 },
+            Size = { 68,24 },
+            Text = "Mute",
+            TextSize = 14,
+            HTextAlign = "Right"
+        })
+        table.insert(graphics, {
+            Type = "Label",
+            Position = { 600,350 },
+            Size = { 68,24 },
+            Text = "Gain",
+            TextSize = 14,
+            HTextAlign = "Right"
+        })
     else
         local resultPage = currentPage - 1
         local firstResult = ((resultPage - 1) * RESULTS_PER_PAGE) + 1
@@ -445,11 +558,11 @@ end
 function GetPins(props)
 	local pins = {
         {
-            Name = "Left",
+            Name = "Channel 1",
             Direction = "output",
         },
         {
-            Name = "Right",
+            Name = "Channel 2",
             Direction = "output",
         }
     }
@@ -474,7 +587,7 @@ function GetComponents(props)
 	local components = {
         {
             Name = "_Media_Stream_Receiver",
-            -- Component.GetComponents() identifies Media Stream Receiver as URL_receiver.
+            -- Q-SYS internal component type for Media Stream Receiver.
             Type = "URL_receiver",
             Properties = {
                 ["mode"] = "Stereo",
@@ -490,10 +603,10 @@ end
 function GetWiring(props)
 	local wiring = {
         {
-            "_Media_Stream_Receiver Channel 1", "Left"
+            "_Media_Stream_Receiver Channel 1", "Channel 1"
         },
         {
-            "_Media_Stream_Receiver Channel 2", "Right"
+            "_Media_Stream_Receiver Channel 2", "Channel 2"
         }
     }
   
@@ -529,35 +642,6 @@ RESULT_COUNT = #Controls.favicon
 DEFAULT_FAVICON = "https://i.postimg.cc/D0K9R9C9/white-leeg.jpg"
 FALLBACK_FAVICON = "https://i.postimg.cc/ZYsFzy7J/radio.png"
 
--- Previous logic: find and select a Media Stream Receiver from the design.
---[[
-Components = Component.GetComponents()
-URLReceiverComponents = {}
-
-for key,value in pairs(Components) do
-  if value.Type == "URL_receiver" then
-    table.insert(URLReceiverComponents,value.Name)
-  end
-end
-
-Controls.ReceiverComponent.Choices = URLReceiverComponents
-
-function setReceiver(name)
-  if not name or name == "" then
-    selectedreceiver = nil
-    return
-  end
-
-  selectedreceiver = Component.New(name)
-end
-
-setReceiver(Controls.ReceiverComponent.String)
-
-Controls.ReceiverComponent.EventHandler = function()
-  setReceiver(Controls.ReceiverComponent.String)
-end
-]]
-
 -- GetComponents exposes embedded components in the runtime global table.
 selectedreceiver = _G["_Media_Stream_Receiver"]
 
@@ -590,6 +674,48 @@ if selectedreceiver and selectedreceiver["status"] then
 end
 
 updateReceiverStatus()
+
+local receiverChannelBindings = {
+  { Name = "channel.1.gain", Writable = true },
+  { Name = "channel.1.invert", Writable = true, Boolean = true },
+  { Name = "channel.1.mute", Writable = true, Boolean = true },
+  { Name = "channel.1.peak.level" },
+  { Name = "channel.2.gain", Writable = true },
+  { Name = "channel.2.invert", Writable = true, Boolean = true },
+  { Name = "channel.2.mute", Writable = true, Boolean = true },
+  { Name = "channel.2.peak.level" },
+}
+
+for _, item in ipairs(receiverChannelBindings) do
+  local binding = item
+  local pluginControl = Controls[binding.Name]
+  local receiverControl = selectedreceiver and selectedreceiver[binding.Name]
+
+  if not pluginControl or not receiverControl then
+    print("Cannot bind embedded receiver control:", binding.Name)
+  else
+    local function updatePluginControl(source)
+      if binding.Boolean then
+        pluginControl.Boolean = source.Boolean
+      else
+        pluginControl.Value = source.Value
+      end
+    end
+
+    receiverControl.EventHandler = updatePluginControl
+    updatePluginControl(receiverControl)
+
+    if binding.Writable then
+      pluginControl.EventHandler = function(source)
+        if binding.Boolean then
+          receiverControl.Boolean = source.Boolean
+        else
+          receiverControl.Value = source.Value
+        end
+      end
+    end
+  end
+end
 
 local InterfaceLookup = {}
 local foundInterfaces = {

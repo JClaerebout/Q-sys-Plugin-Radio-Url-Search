@@ -2,7 +2,7 @@
 
 ## Overview
 
-The **Radio URL Search Q-SYS Plugin** searches online radio stations and sends the selected stream URL to a Q-SYS Media Stream Receiver component.
+The **Radio URL Search Q-SYS Plugin** searches online radio stations and plays the selected stream through its embedded Q-SYS Media Stream Receiver.
 
 The plugin uses the public Radio Browser API to retrieve countries and station results. It is designed as a simple operator tool for finding internet radio streams by country and station name directly inside Q-SYS.
 
@@ -18,8 +18,10 @@ The plugin uses the public Radio Browser API to retrieve countries and station r
 - Filter searches across all countries or by a selected country
 - Ignore stale responses when a newer search has started
 - Hide broken stations from search results
-- Select an existing Q-SYS Media Stream Receiver component
-- Write the selected station stream URL to the Media Stream Receiver
+- Play stations through an embedded Q-SYS Media Stream Receiver
+- Select the receiver's network interface
+- Monitor the receiver status
+- Control stereo gain, polarity, and mute with peak-level metering
 - Show the selected station as now playing
 - Restore the now-playing station name from the current Media Stream Receiver stream URL
 
@@ -33,7 +35,7 @@ The plugin uses the public Radio Browser API to retrieve countries and station r
 | Version | 3.0.0 |
 | Author | Jens Claerebout |
 | Protocol | HTTPS / Radio Browser API |
-| Required Q-SYS Component | Media Stream Receiver |
+| Embedded Q-SYS Component | Media Stream Receiver |
 
 ---
 
@@ -61,6 +63,20 @@ The plugin uses the public Radio Browser API to retrieve countries and station r
 | Control | Type | Description |
 | --- | --- | --- |
 | `NowPlaying` | Text Indicator | Shows the selected or restored station name |
+| `ReceiverStatus` | Status Indicator | Mirrors the embedded Media Stream Receiver status |
+
+#### Receiver Channel Controls
+
+| Control | Type | Direction | Description |
+| --- | --- | --- | --- |
+| `channel.1.gain` | Float / dB | Input / Output | Channel 1 gain from -100 dB to +20 dB |
+| `channel.1.invert` | Boolean | Input / Output | Channel 1 polarity inversion |
+| `channel.1.mute` | Boolean | Input / Output | Channel 1 mute |
+| `channel.1.peak.level` | Float / dBFS | Output | Channel 1 peak level meter |
+| `channel.2.gain` | Float / dB | Input / Output | Channel 2 gain from -100 dB to +20 dB |
+| `channel.2.invert` | Boolean | Input / Output | Channel 2 polarity inversion |
+| `channel.2.mute` | Boolean | Input / Output | Channel 2 mute |
+| `channel.2.peak.level` | Float / dBFS | Output | Channel 2 peak level meter |
 
 #### Internal / UI Controls
 
@@ -68,7 +84,7 @@ These controls are used inside the plugin UI and are not exposed as user pins:
 
 | Control | Type | Description |
 | --- | --- | --- |
-| `ReceiverComponent` | ComboBox | Selects the Q-SYS Media Stream Receiver component that will receive the stream URL |
+| `interface` | ComboBox | Selects the network interface used by the embedded receiver |
 | `Country_Code` | ComboBox | Selects the country used to filter station searches |
 | `StrSearchResult` | ListBox | Displays matching radio stations on the Search page |
 | `favicon` | Text Indicator / Media Display (1-40) | Shows station artwork for each configured result |
@@ -83,7 +99,9 @@ These controls are used inside the plugin UI and are not exposed as user pins:
 
 The plugin UI always contains a Search page. When `Enable Favicon Pages` is enabled, it also includes dynamically generated Results pages with:
 
-- Media Stream Receiver component selection
+- Media Stream Receiver status
+- Network interface selection
+- Stereo channel gain, invert, mute, and peak-level controls
 - Country selection
 - Station search field
 - Search result list on page 1
@@ -123,8 +141,8 @@ Searches are sent with:
 When the plugin starts:
 
 - it loads the `rapidjson` module
-- reads available Q-SYS components
-- adds components of type `URL_receiver` to the receiver dropdown
+- connects to the embedded Media Stream Receiver
+- lists the Core's available network interfaces
 - loads the Radio Browser country list
 
 ### Country Selection
@@ -143,29 +161,27 @@ When results are returned:
 
 - station names remain available in the page 1 result list
 - station names and favicons are also shown across the paged result grids
-- selecting a station writes that station's stream URL to the selected Media Stream Receiver component
+- selecting a station writes that station's stream URL to the embedded Media Stream Receiver
 - `NowPlaying` is updated with the selected station name
 
 ### Media Stream Receiver Integration
 
-The plugin expects the selected receiver component to expose a `url` control. When a station is selected, the plugin writes the station stream URL to:
+When a station is selected, the plugin writes its stream URL to the embedded receiver's `url` control:
 
 ```text
-selected Media Stream Receiver -> url
+embedded Media Stream Receiver -> url
 ```
 
 ---
 
 ## Installation
 
-1. Add a Q-SYS Media Stream Receiver component to your design from Inventory -> Streaming I/O
-2. Give the Media Stream Receiver Script acces.
-3. Add the Radio URL Search plugin to your design
-4. Deploy to the Core
-5. Select the Media Stream Receiver component in the plugin UI
-6. Select a country
-7. Search for a station name
-8. Select a station from the result list
+1. Add the Radio URL Search plugin to your design
+2. Connect its Channel 1 and Channel 2 audio outputs
+3. Deploy to the Core
+4. Select a network interface and country
+5. Search for a station name
+6. Select a station from the result list
 
 ---
 
@@ -174,8 +190,7 @@ selected Media Stream Receiver -> url
 - An internet connection is required for Radio Browser API access
 - The plugin uses the `de1.api.radio-browser.info` Radio Browser server
 - Country selection defaults to `All`
-- Only Q-SYS components of type `Media_Stream_receiver` are listed in the receiver dropdown
-- The Media Stream Receiver component must have a writable `url` control and have script acces
+- The Media Stream Receiver is embedded in the plugin and does not need to be added separately
 
 ---
 
@@ -189,7 +204,6 @@ selected Media Stream Receiver -> url
 
 - Add favorites or presets
 - Add clearer UI feedback for failed searches or unavailable API responses
-- Integrate Media_Stream_Receiver into the plugin
 
 ---
 
