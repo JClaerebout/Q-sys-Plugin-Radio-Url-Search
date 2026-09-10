@@ -10,7 +10,7 @@ The plugin uses the public Radio Browser API to retrieve countries and station r
 
 ## Compatibility
 
-**Plugin V3.0.0 requires Q-SYS Designer V10.0 or later.**
+**Plugin V3.0.0 and V3.1.0 require Q-SYS Designer V10.0 or later.**
 
 If you use **Q-SYS Designer V9.13 or earlier**, use [plugin V2.0.0](https://github.com/JClaerebout/Q-sys-Plugin-Radio-Url-Search/releases/tag/V2.0.0).
 
@@ -32,6 +32,8 @@ If you use **Q-SYS Designer V9.13 or earlier**, use [plugin V2.0.0](https://gith
 - Control stereo gain, polarity, and mute with peak-level metering
 - Show the selected station as now playing
 - Restore the now-playing station name from the current Media Stream Receiver stream URL
+- Save and recall station presets (URL, name, and favicon) from a separate Presets page
+- Configure between 1 and 40 preset slots, with Save, Recall, and Delete buttons
 
 ---
 
@@ -40,7 +42,7 @@ If you use **Q-SYS Designer V9.13 or earlier**, use [plugin V2.0.0](https://gith
 | Property | Value |
 | --- | --- |
 | Name | Radio Url Search |
-| Version | 3.0.0 |
+| Version | 3.1.0 |
 | Author | Jens Claerebout |
 | Protocol | HTTPS / Radio Browser API |
 | Embedded Q-SYS Component | Media Stream Receiver |
@@ -54,7 +56,8 @@ If you use **Q-SYS Designer V9.13 or earlier**, use [plugin V2.0.0](https://gith
 | Property | Type | Default | Range | Description |
 | --- | --- | --- | --- | --- |
 | `Result Count` | Integer | 20 | 1-40 | Sets the number of visual station result controls and creates one result page per group of 10 |
-| `Enable Favicon Pages` | Boolean | false | true/false | Shows the favicon result pages and now-playing artwork. When disabled, only the Search page is shown and the now-playing name expands across the artwork area. |
+| `Preset Count` | Integer | 10 | 1-40 | Sets the number of selectable slots on the Presets page |
+| `Enable Favicon Pages` | Boolean | false | true/false | Shows the favicon result pages, now-playing artwork, and preset artwork. When disabled, Search and Presets remain available without artwork. |
 
 ---
 
@@ -100,12 +103,18 @@ These controls are used inside the plugin UI and are not exposed as user pins:
 | `SelectBtn` | Trigger (1-40) | Selects the corresponding configured station result |
 | `NowPlayingFavicon` | Text Indicator / Media Display | Shows artwork for the active station |
 | `code` | Text | Plugin code/debug text control |
+| `PresetList` | ListBox | Selects a numbered preset slot without starting playback |
+| `PresetName` / `PresetUrl` | Text Indicators | Show the selected preset's saved name and stream URL |
+| `PresetFavicon` | Media Display | Shows the selected preset's artwork when favicon pages are enabled |
+| `PresetSave` / `PresetRecall` / `PresetDelete` | Trigger Buttons | Save the current station, recall the selected slot, or clear it |
+| `PresetStatus` | Text Indicator | Shows preset action feedback |
+| `PresetData` | Hidden Text | Stores preset URLs, full station names, and original favicon URLs as JSON |
 
 ---
 
 ## UI Layout
 
-The plugin UI always contains a Search page. When `Enable Favicon Pages` is enabled, it also includes dynamically generated Results pages with:
+The plugin UI always contains Search and Presets pages. When `Enable Favicon Pages` is enabled, it also includes dynamically generated Results pages. The UI provides:
 
 - Media Stream Receiver status
 - Network interface selection
@@ -180,6 +189,18 @@ When a station is selected, the plugin writes its stream URL to the embedded rec
 embedded Media Stream Receiver -> url
 ```
 
+### Station Presets
+
+1. Play a station from Search or a Results page.
+2. Open Presets and select a numbered slot.
+3. Press **Save** to store its stream URL, full station name, and favicon URL. Saving replaces any station already in that slot.
+4. Select a saved slot and press **Recall** to play it and update Now Playing.
+5. Press **Delete** to clear the selected slot. Playback continues.
+
+Selecting a slot only previews it; empty slots cannot be recalled or deleted. Recall uses the stored stream URL directly, without a Radio Browser lookup. Favicons are saved as URLs, so displaying artwork still requires network access.
+
+Preset data is held in a persistent text control within the Q-SYS design. Save your design after configuring presets. Reducing `Preset Count` hides higher slots while retaining their data; increasing it makes them available again. Verify save/reopen and Core restart behavior during testing.
+
 ---
 
 ## Installation
@@ -208,14 +229,33 @@ embedded Media Stream Receiver -> url
 
 ---
 
+## V3.1.0 Testing
+
+In Q-SYS Designer V10.0 or later, check:
+
+- Save a playing station, tune another station, then recall the saved slot. Confirm audio, station name, and artwork.
+- Overwrite a slot and delete it; deleting must leave playback running.
+- Save and reopen the design, and restart the Core, to verify preset persistence.
+- Try preset counts of 1, 10, and 40. Reduce and then increase the count to verify higher slots return.
+- Check Search, Results, and Presets with `Enable Favicon Pages` both off and on.
+
+---
+
 ## Future Improvements
 
-- Add favorites or presets
 - Add clearer UI feedback for failed searches or unavailable API responses
 
 ---
 
 ## Changelog
+
+### 3.1.0 - 2026-09-10
+
+- Added a dedicated Presets page with configurable 1-40 slots (default 10).
+- Added Save, Recall, and Delete buttons for station URLs, names, and favicons.
+- Stored presets in a persistent text control and retained hidden slots when the preset count is reduced.
+- Prevented delayed startup station lookups from replacing a newly selected or recalled station's details.
+- Still requires Q-SYS Designer V10.0 or later. For V9.13 or earlier, use plugin V2.0.0.
 
 ### 3.0.0 - 2026-09-02
 
