@@ -229,18 +229,6 @@ Preset data is held in a persistent text control within the Q-SYS design. Save y
 
 ---
 
-## V3.1.0 Testing
-
-In Q-SYS Designer V10.0 or later, check:
-
-- Save a playing station, tune another station, then recall the saved slot. Confirm audio, station name, and artwork.
-- Overwrite a slot and delete it; deleting must leave playback running.
-- Save and reopen the design, and restart the Core, to verify preset persistence.
-- Try preset counts of 1, 10, and 40. Reduce and then increase the count to verify higher slots return.
-- Check Search, Results, and Presets with `Enable Favicon Pages` both off and on.
-
----
-
 ## Future Improvements
 
 - Add clearer UI feedback for failed searches or unavailable API responses
