@@ -12,7 +12,7 @@ The plugin uses the public Radio Browser API to retrieve countries and station r
 
 **Plugin V3.0.0 and V3.1.0 require Q-SYS Designer V10.0 or later.**
 
-If you use **Q-SYS Designer V9.13 or earlier**, use [plugin V2.0.0](https://github.com/JClaerebout/Q-sys-Plugin-Radio-Url-Search/releases/tag/V2.0.0).
+If you use **Q-SYS Designer V9.13 or earlier**, use [plugin V2.1.0](https://github.com/JClaerebout/Q-sys-Plugin-Radio-Url-Search/releases/tag/V2.1.0).
 
 ---
 
@@ -243,11 +243,11 @@ Preset data is held in a persistent text control within the Q-SYS design. Save y
 - Added Save, Recall, and Delete buttons for station URLs, names, and favicons.
 - Stored presets in a persistent text control and retained hidden slots when the preset count is reduced.
 - Prevented delayed startup station lookups from replacing a newly selected or recalled station's details.
-- Still requires Q-SYS Designer V10.0 or later. For V9.13 or earlier, use plugin V2.0.0.
+- Still requires Q-SYS Designer V10.0 or later. For V9.13 or earlier, use plugin V2.1.0.
 
 ### 3.0.0 - 2026-09-02
 
-- Requires Q-SYS Designer V10.0 or later. For Q-SYS Designer V9.13 or earlier, use [plugin V2.0.0](https://github.com/JClaerebout/Q-sys-Plugin-Radio-Url-Search/releases/tag/V2.0.0).
+- Requires Q-SYS Designer V10.0 or later. For Q-SYS Designer V9.13 or earlier, use [plugin V2.1.0](https://github.com/JClaerebout/Q-sys-Plugin-Radio-Url-Search/releases/tag/V2.1.0).
 - Embedded the Q-SYS Media Stream Receiver in the plugin.
 - Added receiver status, network interface selection, and stereo audio output pins.
 - Added the `Enable Favicon Pages` property. Favicons do not always load reliably in UCI, so they are disabled by default.
