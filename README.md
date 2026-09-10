@@ -8,6 +8,14 @@ The plugin uses the public Radio Browser API to retrieve countries and station r
 
 ---
 
+## Compatibility
+
+**Plugin V3.0.0 requires Q-SYS Designer V10.0 or later.**
+
+If you use **Q-SYS Designer V9.13 or earlier**, use [plugin V2.0.0](https://github.com/JClaerebout/Q-sys-Plugin-Radio-Url-Search/releases/tag/V2.0.0).
+
+---
+
 ## Features
 
 - Search internet radio stations by name
@@ -211,6 +219,7 @@ embedded Media Stream Receiver -> url
 
 ### 3.0.0 - 2026-09-02
 
+- Requires Q-SYS Designer V10.0 or later. For Q-SYS Designer V9.13 or earlier, use [plugin V2.0.0](https://github.com/JClaerebout/Q-sys-Plugin-Radio-Url-Search/releases/tag/V2.0.0).
 - Embedded the Q-SYS Media Stream Receiver in the plugin.
 - Added receiver status, network interface selection, and stereo audio output pins.
 - Added the `Enable Favicon Pages` property. Favicons do not always load reliably in UCI, so they are disabled by default.
