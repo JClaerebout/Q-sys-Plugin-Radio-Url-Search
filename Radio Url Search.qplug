@@ -2,7 +2,7 @@ PluginInfo = {
 	-- Use a tilde (~) to seperate the name into a folder
     Name = "Radio Url Search",
 	-- Use semantic versioning
-    Version = "2.0.0",
+    Version = "2.1.0",
 	-- Use a GUID for the Id (Note: Avoid changing the Id for a plugin once it is set)
     Id = "ec2efe7f-9127-4081-8b07-90ee9e526dda",
 	-- The square brackets allow for a multi-line string
@@ -53,7 +53,19 @@ function GetProperties()
             Value = 20,
             Min = 1,
             Max = 40,
-        }
+        },
+        {
+            Name = "Preset Count",
+            Type = "integer",
+            Value = 10,
+            Min = 1,
+            Max = 40,
+        },
+        {
+            Name = "Enable Favicon Pages",
+            Type = "boolean",
+            Value = false,
+        },
     }
 
     return props
@@ -83,6 +95,20 @@ end
 ---------------------------------- Controls -----------------------------------
 function GetControls(props)
     local ctls = { }
+
+    -- Editable text controls retain saved preset data as part of the design.
+    table.insert(ctls, { Name = "PresetData", ControlType = "Text", UserPin = false })
+    table.insert(ctls, { Name = "PresetList", ControlType = "Text", UserPin = false })
+    for _, name in ipairs({ "PresetName", "PresetUrl", "PresetFavicon", "PresetStatus" }) do
+        table.insert(ctls, {
+            Name = name, ControlType = "Indicator", IndicatorType = "Text", UserPin = false
+        })
+    end
+    for _, action in ipairs({ "Save", "Recall", "Delete" }) do
+        table.insert(ctls, {
+            Name = "Preset" .. action, ControlType = "Button", ButtonType = "Trigger", UserPin = false
+        })
+    end
 
 	if ENABLE_CODE_PIN then
 		table.insert(ctls, {
@@ -173,6 +199,10 @@ function GetControlLayout(props)
     local graphics = { }
     local currentPage = props["page_index"].Value
     local resultCount = props["Result Count"].Value
+    local faviconPagesEnabled = props["Enable Favicon Pages"].Value
+    local presetPage = 2 + (faviconPagesEnabled and math.ceil(resultCount / RESULTS_PER_PAGE) or 0)
+
+    layout["PresetData"] = { Style = "None" }
 
     if ENABLE_CODE_PIN then
         layout["code"] =
@@ -226,8 +256,8 @@ function GetControlLayout(props)
         layout["NowPlaying"] =
         {
             PrettyName = "Now Playing",
-            Position = { 204,619 },
-            Size = { 305,100 },
+            Position = faviconPagesEnabled and { 204,619 } or { 84,619 },
+            Size = faviconPagesEnabled and { 305,100 } or { 425,100 },
             Style = "Text",
             TextFontSize = 20,
             HTextAlign = "Center",
@@ -236,15 +266,18 @@ function GetControlLayout(props)
             TextColor = { 0,0,0 },
             StrokeWidth = 1,
         }
-        layout["NowPlayingFavicon"] =
-        {
-            PrettyName = "Now Playing Favicon",
-            Position = { 84,619 },
-            Size = { 100,100 },
-            Color = { 255,255,255,255 },
-            Style = "Media",
-            CornerRadius = 8,
-        }
+
+        if faviconPagesEnabled then
+            layout["NowPlayingFavicon"] =
+            {
+                PrettyName = "Now Playing Favicon",
+                Position = { 84,619 },
+                Size = { 100,100 },
+                Color = { 255,255,255,255 },
+                Style = "Media",
+                CornerRadius = 8,
+            }
+        end
 
         table.insert(graphics, {
             Type = "GroupBox",
@@ -294,6 +327,52 @@ function GetControlLayout(props)
             TextSize = 20,
             HTextAlign = "Center"
         })
+    elseif currentPage == presetPage then
+        table.insert(graphics, {
+            Type = "GroupBox", Position = { 14,14 }, Size = { 559,600 },
+            StrokeColor = "black", StrokeWidth = 2, CornerRadius = 8,
+        })
+        table.insert(graphics, {
+            Type = "Label", Position = { 34,30 }, Size = { 519,30 },
+            Text = "Station Presets", TextSize = 20, HTextAlign = "Center",
+        })
+        table.insert(graphics, {
+            Type = "Label", Position = { 34,65 }, Size = { 519,40 },
+            Text = "Select a slot. Save stores the currently playing station.",
+            TextSize = 14, HTextAlign = "Center",
+        })
+        layout["PresetList"] = {
+            PrettyName = "Presets~Slot", Position = { 34,115 }, Size = { 519,220 },
+            Style = "ListBox", TextFontSize = 16,
+        }
+        layout["PresetName"] = {
+            PrettyName = "Presets~Station Name",
+            Position = faviconPagesEnabled and { 144,350 } or { 34,350 },
+            Size = faviconPagesEnabled and { 409,60 } or { 519,60 },
+            Style = "Text", TextFontSize = 18, WordWrap = true,
+        }
+        if faviconPagesEnabled then
+            layout["PresetFavicon"] = {
+                PrettyName = "Presets~Favicon", Position = { 34,350 }, Size = { 100,100 },
+                Style = "Media", CornerRadius = 8,
+            }
+        end
+        layout["PresetUrl"] = {
+            PrettyName = "Presets~Stream URL",
+            Position = faviconPagesEnabled and { 144,415 } or { 34,415 },
+            Size = faviconPagesEnabled and { 409,35 } or { 519,35 },
+            Style = "Text", TextFontSize = 12,
+        }
+        for i, action in ipairs({ "Save", "Recall", "Delete" }) do
+            layout["Preset" .. action] = {
+                PrettyName = "Presets~" .. action, Position = { 34 + (i - 1) * 178,470 },
+                Size = { 163,40 }, Style = "Button", Legend = action, CornerRadius = 8,
+            }
+        end
+        layout["PresetStatus"] = {
+            PrettyName = "Presets~Status", Position = { 34,530 }, Size = { 519,60 },
+            Style = "Text", TextFontSize = 14, WordWrap = true,
+        }
     else
         local resultPage = currentPage - 1
         local firstResult = ((resultPage - 1) * RESULTS_PER_PAGE) + 1
@@ -386,11 +465,14 @@ function GetPages(props)
         { name = "Search" }
     }
 
-    local resultPageCount = math.ceil(props["Result Count"].Value / RESULTS_PER_PAGE)
-    for page = 1, resultPageCount do
-        table.insert(pages, { name = "Results " .. page })
+    if props["Enable Favicon Pages"].Value then
+        local resultPageCount = math.ceil(props["Result Count"].Value / RESULTS_PER_PAGE)
+        for page = 1, resultPageCount do
+            table.insert(pages, { name = "Results " .. page })
+        end
     end
 
+    table.insert(pages, { name = "Presets" })
     return pages
 end
 function GetComponents(props)
@@ -429,6 +511,11 @@ strSearch = Controls.StrSearch
 stations = {}
 searchRequestId = 0
 faviconUpdateIds = {}
+local currentStation = nil
+local stationRevision = 0
+local presets = {}
+local selectedPreset = 1
+local presetCount = Properties["Preset Count"].Value
 RESULT_COUNT = #Controls.favicon
 
 DEFAULT_FAVICON = "https://i.postimg.cc/D0K9R9C9/white-leeg.jpg"
@@ -446,6 +533,10 @@ end
 Controls.ReceiverComponent.Choices = URLReceiverComponents
 
 function setReceiver(name)
+  stationRevision = stationRevision + 1
+  currentStation = nil
+  Controls.NowPlaying.String = ""
+  Controls.NowPlayingFavicon.String = ""
   if not name or name == "" then
     selectedreceiver = nil
     return
@@ -458,6 +549,7 @@ setReceiver(Controls.ReceiverComponent.String)
 
 Controls.ReceiverComponent.EventHandler = function()
   setReceiver(Controls.ReceiverComponent.String)
+  funcGetCurrentStation()
 end
 
 function imageControlString(url)
@@ -542,16 +634,30 @@ function formatStationName(name)
   return string.sub(name, 1, 97) .. "..."
 end
 
-function selectStation(index)
-  local station = stations[index]
-  if not station or not station.url or not selectedreceiver or not selectedreceiver["url"] then
-    return
+function tuneStation(station)
+  if not station or type(station.url) ~= "string" or station.url == "" then
+    return false
+  end
+  if not selectedreceiver or not selectedreceiver["url"] then
+    print("Cannot tune station: selected Media Stream Receiver is unavailable")
+    return false
   end
 
   selectedreceiver["url"].String = station.url
-  Controls.NowPlaying.String = station.displayName or formatStationName(station.name)
-  setNowPlayingFavicon(station.displayFavicon or FALLBACK_FAVICON)
-  Controls.StrSearchResult.Value = index
+  if selectedreceiver["enable"] then
+    selectedreceiver["enable"].Boolean = true
+  end
+  stationRevision = stationRevision + 1
+  currentStation = { url = station.url, name = station.name or station.url, favicon = station.favicon or "" }
+  Controls.NowPlaying.String = formatStationName(currentStation.name)
+  setNowPlayingFavicon(station.displayFavicon or convertFavicon(currentStation.favicon))
+  return true
+end
+
+function selectStation(index)
+  if tuneStation(stations[index]) then
+    Controls.StrSearchResult.Value = index
+  end
 end
 
 function convertFavicon(url)
@@ -573,6 +679,94 @@ function convertFavicon(url)
         .. tostring(os.time())
         .. tostring(math.random(1000,9999))
 end
+
+local function refreshPresets()
+    local choices = {}
+    for i = 1, presetCount do
+        local preset = presets[tostring(i)]
+        choices[i] = string.format("%02d - %s", i, preset and formatStationName(preset.name) or "Empty")
+    end
+    Controls.PresetList.Choices = choices
+    Controls.PresetList.String = choices[selectedPreset]
+    local preset = presets[tostring(selectedPreset)]
+    Controls.PresetName.String = preset and preset.name or "Empty preset"
+    Controls.PresetUrl.String = preset and preset.url or ""
+    Controls.PresetFavicon.String = preset and imageControlString(convertFavicon(preset.favicon)) or ""
+    Controls.PresetRecall.IsDisabled = preset == nil
+    Controls.PresetDelete.IsDisabled = preset == nil
+end
+
+local function loadPresets()
+    presets = {}
+    local data = Controls.PresetData.String
+    if data ~= "" then
+        local ok, saved = pcall(rapidjson.decode, data)
+        if not ok or type(saved) ~= "table" then
+            Controls.PresetStatus.String = "Saved preset data could not be read."
+            refreshPresets()
+            return
+        end
+        for key, preset in pairs(saved) do
+            local slot = tonumber(key)
+            if slot and slot >= 1 and slot <= 40 and slot == math.floor(slot)
+                and type(preset) == "table" and type(preset.url) == "string" and preset.url ~= ""
+                and type(preset.name) == "string" and type(preset.favicon) == "string" then
+                presets[tostring(slot)] = { url = preset.url, name = preset.name, favicon = preset.favicon }
+            end
+        end
+    end
+    refreshPresets()
+end
+
+Controls.PresetList.EventHandler = function(ctrl)
+    for i, choice in ipairs(ctrl.Choices) do
+        if ctrl.String == choice then
+            selectedPreset = i
+            Controls.PresetStatus.String = ""
+            refreshPresets()
+            return
+        end
+    end
+end
+
+Controls.PresetSave.EventHandler = function()
+    local receiverUrl = selectedreceiver and selectedreceiver["url"]
+    if not receiverUrl or receiverUrl.String == "" then
+        Controls.PresetStatus.String = "Play a station before saving a preset."
+        return
+    end
+    if not currentStation or currentStation.url ~= receiverUrl.String then
+        Controls.PresetStatus.String = "Station details are unavailable. Select the station in Search first."
+        return
+    end
+    presets[tostring(selectedPreset)] = {
+        url = currentStation.url, name = currentStation.name, favicon = currentStation.favicon
+    }
+    Controls.PresetData.String = rapidjson.encode(presets)
+    refreshPresets()
+    Controls.PresetStatus.String = "Saved preset " .. selectedPreset .. ": " .. currentStation.name
+end
+
+Controls.PresetRecall.EventHandler = function()
+    local preset = presets[tostring(selectedPreset)]
+    if not preset then
+        Controls.PresetStatus.String = "This preset is empty."
+    elseif tuneStation(preset) then
+        Controls.PresetStatus.String = "Recalled preset " .. selectedPreset .. ": " .. preset.name
+    else
+        Controls.PresetStatus.String = "Cannot recall: selected receiver unavailable."
+    end
+end
+
+Controls.PresetDelete.EventHandler = function()
+    presets[tostring(selectedPreset)] = nil
+    Controls.PresetData.String = rapidjson.encode(presets)
+    refreshPresets()
+    Controls.PresetStatus.String = "Deleted preset " .. selectedPreset .. "."
+end
+
+Controls.PresetData.EventHandler = loadPresets
+Controls.PresetStatus.String = "Save replaces the selected slot. Delete clears it without stopping playback."
 
 function funcGetRadio(requestId, tbl, code, data, err, headers)
     print(string.format(
@@ -788,20 +982,22 @@ function urlEncode(str)
     end)
 end
 
-function funcRestoreNowPlaying(tbl, code, data, err, headers)
+function funcRestoreNowPlaying(tbl, code, data, err, headers, streamUrl, revision)
     print(string.format(
         "Restore response: Return Code=%i; Error=%s",
         code,
         err or "None"
     ))
 
-    if code ~= 200 then
+    if code ~= 200 or revision ~= stationRevision or not selectedreceiver
+        or not selectedreceiver["url"] or selectedreceiver["url"].String ~= streamUrl then
         return
     end
 
     local stations = rapidjson.decode(data)
 
     if stations and stations[1] and stations[1].name then
+        currentStation = { url = streamUrl, name = stations[1].name, favicon = stations[1].favicon or "" }
         Controls.NowPlaying.String = formatStationName(stations[1].name)
         setNowPlayingFavicon(convertFavicon(stations[1].favicon))
         print("Restored station: " .. stations[1].name)
@@ -825,12 +1021,17 @@ function funcGetCurrentStation()
 
     print("Looking up station: " .. lookupUrl)
 
+    local revision = stationRevision
     HttpClient.Get{
         Url = lookupUrl,
         Timeout = 10,
-        EventHandler = funcRestoreNowPlaying
+        EventHandler = function(tbl, code, data, err, headers)
+            funcRestoreNowPlaying(tbl, code, data, err, headers, streamUrl, revision)
+        end
     }
 end
+
+loadPresets()
 
 Controls.StrSearch.String = ""
 
