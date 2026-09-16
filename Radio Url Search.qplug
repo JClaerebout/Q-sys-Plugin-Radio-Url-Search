@@ -2,7 +2,7 @@ PluginInfo = {
 	-- Use a tilde (~) to seperate the name into a folder
     Name = "Radio Url Search",
 	-- Use semantic versioning
-    Version = "3.1.0",
+    Version = "3.2.0",
 	-- Use a GUID for the Id (Note: Avoid changing the Id for a plugin once it is set)
     Id = "ec2efe7f-9127-4081-8b07-90ee9e526dda",
 	-- The square brackets allow for a multi-line string
@@ -154,6 +154,15 @@ function GetControls(props)
     })
 
     table.insert(ctls, {
+        Name = "enable",
+        ControlType = "Button",
+        ButtonType = "Toggle",
+        Count = 1,
+        PinStyle = "Both",
+        UserPin = true
+    })
+
+    table.insert(ctls, {
         Name = "interface",
         ControlType = "Text",
         Count = 1,
@@ -296,6 +305,19 @@ function GetControlLayout(props)
             HTextAlign = "Center",
             CornerRadius = 8,
         }
+        layout["enable"] = {
+            PrettyName = "Media Stream Receiver Enable",
+            Position = { 655,29 },
+            Size = { 100,30 },
+            Style = "Button",
+            ButtonStyle = "Toggle",
+            Legend = "Enable",
+            TextFontSize = 15,
+            CornerRadius = 8,
+            OffColor = { 100,100,100 },
+            Color = { 0,180,0 },
+            UnlinkOffColor = true,
+        }
         layout["interface"] =
         {
             PrettyName = "Media Stream Receiver Interface",
@@ -402,6 +424,14 @@ function GetControlLayout(props)
         table.insert(graphics, {
             Type = "GroupBox",
             Position = { 590,14 },
+            Size = { 230,60 },
+            StrokeColor = "black",
+            StrokeWidth = 2,
+            CornerRadius = 8,
+        })
+        table.insert(graphics, {
+            Type = "GroupBox",
+            Position = { 590,88 },
             Size = { 230,410 },
             StrokeColor = "black",
             StrokeWidth = 2,
@@ -409,7 +439,7 @@ function GetControlLayout(props)
         })
         table.insert(graphics, {
             Type = "Label",
-            Position = { 605,28 },
+            Position = { 605,102 },
             Size = { 200,30 },
             Text = "Receiver Channels",
             TextSize = 20,
@@ -422,7 +452,7 @@ function GetControlLayout(props)
 
             table.insert(graphics, {
                 Type = "Label",
-                Position = { x,62 },
+                Position = { x,136 },
                 Size = { 55,24 },
                 Text = tostring(channel),
                 TextSize = 16,
@@ -431,13 +461,13 @@ function GetControlLayout(props)
 
             layout[prefix .. "peak.level"] = {
                 PrettyName = "Channel " .. channel .. "~Peak Level",
-                Position = { x,100 },
+                Position = { x,174 },
                 Size = { 55,140 },
                 Style = "Meter",
             }
             layout[prefix .. "invert"] = {
                 PrettyName = "Channel " .. channel .. "~Invert",
-                Position = { x,260 },
+                Position = { x,334 },
                 Size = { 55,24 },
                 Style = "Button",
                 ButtonStyle = "Toggle",
@@ -447,7 +477,7 @@ function GetControlLayout(props)
             }
             layout[prefix .. "mute"] = {
                 PrettyName = "Channel " .. channel .. "~Mute",
-                Position = { x,296 },
+                Position = { x,370 },
                 Size = { 55,24 },
                 Style = "Button",
                 ButtonStyle = "Toggle",
@@ -457,7 +487,7 @@ function GetControlLayout(props)
             }
             layout[prefix .. "gain"] = {
                 PrettyName = "Channel " .. channel .. "~Gain",
-                Position = { x,338 },
+                Position = { x,412 },
                 Size = { 55,55 },
                 Style = "Knob",
                 ShowTextbox = true,
@@ -466,7 +496,7 @@ function GetControlLayout(props)
 
         table.insert(graphics, {
             Type = "Label",
-            Position = { 600,100 },
+            Position = { 600,174 },
             Size = { 68,140 },
             Text = "Peak Level\n(dBFS)",
             TextSize = 14,
@@ -475,7 +505,7 @@ function GetControlLayout(props)
         })
         table.insert(graphics, {
             Type = "Label",
-            Position = { 600,260 },
+            Position = { 600,334 },
             Size = { 68,24 },
             Text = "Invert",
             TextSize = 14,
@@ -483,7 +513,7 @@ function GetControlLayout(props)
         })
         table.insert(graphics, {
             Type = "Label",
-            Position = { 600,296 },
+            Position = { 600,370 },
             Size = { 68,24 },
             Text = "Mute",
             TextSize = 14,
@@ -491,7 +521,7 @@ function GetControlLayout(props)
         })
         table.insert(graphics, {
             Type = "Label",
-            Position = { 600,350 },
+            Position = { 600,424 },
             Size = { 68,24 },
             Text = "Gain",
             TextSize = 14,
@@ -751,7 +781,8 @@ end
 
 updateReceiverStatus()
 
-local receiverChannelBindings = {
+local receiverBindings = {
+  { Name = "enable", Writable = true, Boolean = true },
   { Name = "channel.1.gain", Writable = true },
   { Name = "channel.1.invert", Writable = true, Boolean = true },
   { Name = "channel.1.mute", Writable = true, Boolean = true },
@@ -762,7 +793,7 @@ local receiverChannelBindings = {
   { Name = "channel.2.peak.level" },
 }
 
-for _, item in ipairs(receiverChannelBindings) do
+for _, item in ipairs(receiverBindings) do
   local binding = item
   local pluginControl = Controls[binding.Name]
   local receiverControl = selectedreceiver and selectedreceiver[binding.Name]
@@ -979,6 +1010,7 @@ function tuneStation(station)
   selectedreceiver["url"].String = station.url
   if selectedreceiver["enable"] then
     selectedreceiver["enable"].Boolean = true
+    Controls.enable.Boolean = selectedreceiver["enable"].Boolean
   end
   stationRevision = stationRevision + 1
   currentStation = { url = station.url, name = station.name or station.url, favicon = station.favicon or "" }

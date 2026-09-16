@@ -10,7 +10,7 @@ The plugin uses the public Radio Browser API to retrieve countries and station r
 
 ## Compatibility
 
-**Plugin V3.0.0 and V3.1.0 require Q-SYS Designer V10.0 or later.**
+**Plugin V3.x requires Q-SYS Designer V10.0 or later.**
 
 If you use **Q-SYS Designer V9.13 or earlier**, use [plugin V2.1.0](https://github.com/JClaerebout/Q-sys-Plugin-Radio-Url-Search/releases/tag/V2.1.0).
 
@@ -29,6 +29,7 @@ If you use **Q-SYS Designer V9.13 or earlier**, use [plugin V2.1.0](https://gith
 - Play stations through an embedded Q-SYS Media Stream Receiver
 - Select the receiver's network interface
 - Monitor the receiver status
+- Enable or disable the embedded receiver with a Boolean toggle
 - Control stereo gain, polarity, and mute with peak-level metering
 - Show the selected station as now playing
 - Restore the now-playing station name from the current Media Stream Receiver stream URL
@@ -42,7 +43,7 @@ If you use **Q-SYS Designer V9.13 or earlier**, use [plugin V2.1.0](https://gith
 | Property | Value |
 | --- | --- |
 | Name | Radio Url Search |
-| Version | 3.1.0 |
+| Version | 3.2.0 |
 | Author | Jens Claerebout |
 | Protocol | HTTPS / Radio Browser API |
 | Embedded Q-SYS Component | Media Stream Receiver |
@@ -76,10 +77,11 @@ If you use **Q-SYS Designer V9.13 or earlier**, use [plugin V2.1.0](https://gith
 | `NowPlaying` | Text Indicator | Shows the selected or restored station name |
 | `ReceiverStatus` | Status Indicator | Mirrors the embedded Media Stream Receiver status |
 
-#### Receiver Channel Controls
+#### Receiver Controls
 
 | Control | Type | Direction | Description |
 | --- | --- | --- | --- |
+| `enable` | Boolean Toggle | Input / Output | Enables or disables the embedded receiver and mirrors its current enable state; selecting or recalling a station enables playback |
 | `channel.1.gain` | Float / dB | Input / Output | Channel 1 gain from -100 dB to +20 dB |
 | `channel.1.invert` | Boolean | Input / Output | Channel 1 polarity inversion |
 | `channel.1.mute` | Boolean | Input / Output | Channel 1 mute |
@@ -117,6 +119,7 @@ These controls are used inside the plugin UI and are not exposed as user pins:
 The plugin UI always contains Search and Presets pages. When `Enable Favicon Pages` is enabled, it also includes dynamically generated Results pages. The UI provides:
 
 - Media Stream Receiver status
+- Receiver Enable toggle in its own box above Receiver Channels
 - Network interface selection
 - Stereo channel gain, invert, mute, and peak-level controls
 - Country selection
@@ -236,6 +239,12 @@ Preset data is held in a persistent text control within the Q-SYS design. Save y
 ---
 
 ## Changelog
+
+### 3.2.0 - 2026-09-16
+
+- Added an Enable toggle in its own box above Receiver Channels, with input and output pins.
+- Synchronized the toggle with the embedded receiver's enable state, including station selection and preset recall.
+- Moved Receiver Channels down to make room for the Enable box.
 
 ### 3.1.0 - 2026-09-10
 
