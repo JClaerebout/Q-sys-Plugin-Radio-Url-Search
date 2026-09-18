@@ -10,9 +10,9 @@ The plugin uses the public Radio Browser API to retrieve countries and station r
 
 ## Compatibility
 
-V2.1.0 is the V2 maintenance release for Q-SYS Designer V9.13 and earlier installations that support V2.0.0. It retains the external URL Receiver integration and does not embed a receiver.
+V2.2.0 is the V2 maintenance release targeting Q-SYS Designer V9.13. It retains the external URL Receiver integration and does not embed a receiver.
 
-For Q-SYS Designer V10.0 or later, [V3.1.0](https://github.com/JClaerebout/Q-sys-Plugin-Radio-Url-Search/releases/tag/V3.1.0) remains the latest release.
+For Q-SYS Designer V10.0 or later, [V3.3.0](https://github.com/JClaerebout/Q-sys-Plugin-Radio-Url-Search/releases/tag/V3.3.0) remains the latest release.
 
 ---
 
@@ -20,7 +20,7 @@ For Q-SYS Designer V10.0 or later, [V3.1.0](https://github.com/JClaerebout/Q-sys
 
 - Save station URLs, names, and favicon URLs in 1-40 preset slots (default 10)
 - Use Save, Recall, and Delete on a dedicated Presets page
-- Hide favicon pages and artwork by default with `Enable Favicon Pages`
+- Show or hide logo pages and artwork with `Enable Logo Pages` (enabled by default)
 
 - Search internet radio stations by name
 - Filter station searches by country
@@ -42,7 +42,7 @@ For Q-SYS Designer V10.0 or later, [V3.1.0](https://github.com/JClaerebout/Q-sys
 | Property | Value |
 | --- | --- |
 | Name | Radio Url Search |
-| Version | 2.1.0 |
+| Version | 2.2.0 |
 | Author | Jens Claerebout |
 | Protocol | HTTPS / Radio Browser API |
 | Required Q-SYS Component | URL Receiver |
@@ -55,9 +55,16 @@ For Q-SYS Designer V10.0 or later, [V3.1.0](https://github.com/JClaerebout/Q-sys
 
 | Property | Type | Default | Range | Description |
 | --- | --- | --- | --- | --- |
+| `Result Color` | String | `#ff000000` | `#AARRGGBB` or `#RRGGBB` | Sets SVG result-name colour; invalid values use opaque black |
 | `Preset Count` | Integer | 10 | 1-40 | Number of selectable preset slots |
-| `Enable Favicon Pages` | Boolean | false | true/false | Shows Results pages and now-playing/preset artwork when enabled |
+| `Enable Logo Pages` | Boolean | true | true/false | Shows Results pages and now-playing/preset artwork when enabled |
 | `Result Count` | Integer | 20 | 1-40 | Sets the number of visual station result controls and creates one result page per group of 10 |
+
+---
+
+**Result-button text colour:** The normal **Text Color** setting in Designer/UCI has **no effect** on result-button station names because the text is drawn inside the SVG. Select the plugin component and change **Properties → Result Color** instead. This sets the text colour for all result buttons.
+
+Examples: `#ff000000` = opaque black, `#ffffffff` = opaque white, `#ffff0000` = opaque red (`#AARRGGBB`, alpha first).
 
 ---
 
@@ -90,14 +97,14 @@ These controls are used inside the plugin UI and are not exposed as user pins:
 | `ReceiverComponent` | ComboBox | Selects the Q-SYS URL Receiver component that will receive the stream URL |
 | `Country_Code` | ComboBox | Selects the country used to filter station searches |
 | `StrSearchResult` | ListBox | Displays matching radio stations on the Search page |
-| `favicon` | Text Indicator / Media Display (1-40) | Shows station artwork for each configured result |
-| `Name` | Text Indicator (1-40) | Shows the word-wrapped station name for each configured result |
-| `SelectBtn` | Trigger (1-40) | Selects the corresponding configured station result |
-| `NowPlayingFavicon` | Text Indicator / Media Display | Shows artwork for the active station |
+
+
+| `SelectBtn` | Trigger Button (1-40) | Displays the logo and wrapped station name in one SVG; pressing selects the station |
+| `StationLogo` | Momentary Button | Displays the active station logo using SVG |
 | `code` | Text | Plugin code/debug text control |
 | `PresetList` | ListBox | Selects a numbered preset slot without starting playback |
 | `PresetName` / `PresetUrl` | Text Indicators | Show the selected preset's saved name and stream URL |
-| `PresetFavicon` | Media Display | Shows the selected preset's artwork when favicon pages are enabled |
+| `PresetFavicon` | Momentary Button / SVG | Shows the selected preset's artwork when logo pages are enabled |
 | `PresetSave` / `PresetRecall` / `PresetDelete` | Trigger Buttons | Save the current station, recall the selected slot, or clear it |
 | `PresetStatus` | Text Indicator | Shows preset action feedback |
 | `PresetData` | Hidden Text | Stores preset URLs, full station names, and original favicon URLs as JSON |
@@ -106,7 +113,7 @@ These controls are used inside the plugin UI and are not exposed as user pins:
 
 ## UI Layout
 
-The plugin UI always contains Search and Presets pages. Enable `Enable Favicon Pages` to show artwork and dynamically generated Results pages. The UI includes:
+The plugin UI always contains Search and Presets pages. Enable `Enable Logo Pages` to show artwork and dynamically generated Results pages. The UI includes:
 
 - URL Receiver component selection
 - Country selection
@@ -181,6 +188,20 @@ selected URL Receiver -> url
 
 ---
 
+### Station Artwork
+
+When logo pages are enabled, the Core downloads artwork using `HttpClient.Download` through `images.weserv.nl`, requesting a PNG fitted within 300 × 300 pixels. Each PNG is base64-encoded inside an SVG `<image>` with `preserveAspectRatio="xMidYMid meet"`; the complete SVG is then base64-encoded into the button Legend's JSON `IconData`, with `DrawChrome=false`. No EzSVG dependency is needed. UCI clients receive the embedded artwork rather than downloading favicon URLs themselves.
+
+Artwork buttons stay enabled to avoid Q-SYS dimming their SVGs in Live/Emulate. The Now Playing and preset artwork handlers immediately clear presses without tuning. Each result tile is one trigger button with the logo and station name drawn together in SVG. Names wrap to three lines, with an ellipsis for longer names. Set the plugin's `Result Color` property to change result text colour: `#ff000000` is opaque black, `#ffff0000` is opaque red, and `#ffffffff` is opaque white. Eight-digit values use `#AARRGGBB`; six-digit `#RRGGBB` values are also accepted as opaque. Invalid values fall back to opaque black. Alpha applies only to the text, not the logo. Designer/UCI Text Color does not change SVG text. Pressing anywhere on the tile selects that station. Missing or invalid favicon URLs, failed downloads, non-200 responses, unexpected Content-Type, empty data, and structurally invalid PNGs show a locally generated radio icon. Downloads are serialized with active-station artwork taking priority over pending preset and result artwork. Selection changes invalidate old responses and replace pending work; the last successful logo/URL is cached, with a separate cache for the active station. Repeated Now Playing updates for the same station/favicon do not retry downloads, including failed downloads. Select another station and return to retry a failure.
+
+Images above 512 KiB or 512 pixels on either axis are rejected before base64 encoding. PNG signature, chunk boundaries, header, image-data presence, and ending are checked; this is not a full PNG decoder or checksum validation. The [Q-SYS HttpClient API](https://help.qsys.com/Content/Control_Scripting/Using_Lua_in_Q-Sys/HttpClient.htm) buffers the response before calling the handler and exposes no streaming receive-size limit, so the 512 KiB check limits processing/cache memory rather than imposing a hard network receive cap. Conversion dimensions and a 10-second timeout reduce exposure. Failure messages are limited to one per 10 seconds. No artwork is downloaded when logo pages are disabled.
+
+After upgrading, check the renamed `Enable Logo Pages` property and reselect your external URL Receiver if necessary. Replace any UCI reference to `NowPlayingFavicon` with `StationLogo`; preset artwork changes from a text indicator to a button. Result tiles now use only `SelectBtn`; remove old `favicon` and `Name` controls from existing UCIs and use the combined `SelectBtn` instead.
+
+Q-SYS Designer 9.13/Core verification is still required: SVG data-URI rendering and full-colour artwork, Result Color (including alpha) and icon/text positioning, and press-reset behavior in Designer and UCI clients, HTTPS conversion from PNG/SVG/ICO sources, missing/broken/oversized images, rapid selection during downloads, preset save/reopen and recall, and external URL Receiver playback and Now Playing behavior.
+
+---
+
 ## Installation
 
 1. Add a Q-SYS URL Receiver component to your design
@@ -216,6 +237,16 @@ selected URL Receiver -> url
 ---
 
 ## Changelog
+
+### 2.2.0 - 2026-09-18
+
+- Ported V3.3.0 SVG station logos to the V2 plugin for Designer 9.13, retaining external URL Receiver selection.
+- Combined each result logo, wrapped name, and selection action into one button.
+- Added Result Color for SVG text and renamed Enable Favicon Pages to Enable Logo Pages (enabled by default).
+- Added Core-side PNG downloads, local fallback artwork, response validation, caching, serialized downloads, and stale-response protection.
+- Reset the active logo when changing receivers and ignore artwork responses from the previous receiver selection.
+- Local regression tests pass; verify the final plugin in Q-SYS Designer 9.13 and on a Core before deployment.
+
 
 ### 2.1.0 - 2026-09-10
 

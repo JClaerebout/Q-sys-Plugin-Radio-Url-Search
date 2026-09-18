@@ -2,7 +2,7 @@ PluginInfo = {
 	-- Use a tilde (~) to seperate the name into a folder
     Name = "Radio Url Search",
 	-- Use semantic versioning
-    Version = "2.1.0",
+    Version = "2.2.0",
 	-- Use a GUID for the Id (Note: Avoid changing the Id for a plugin once it is set)
     Id = "ec2efe7f-9127-4081-8b07-90ee9e526dda",
 	-- The square brackets allow for a multi-line string
@@ -55,6 +55,11 @@ function GetProperties()
             Max = 40,
         },
         {
+            Name = "Result Color",
+            Type = "string",
+            Value = "#ff000000",
+        },
+        {
             Name = "Preset Count",
             Type = "integer",
             Value = 10,
@@ -62,9 +67,9 @@ function GetProperties()
             Max = 40,
         },
         {
-            Name = "Enable Favicon Pages",
+            Name = "Enable Logo Pages",
             Type = "boolean",
-            Value = false,
+            Value = true,
         },
     }
 
@@ -99,11 +104,14 @@ function GetControls(props)
     -- Editable text controls retain saved preset data as part of the design.
     table.insert(ctls, { Name = "PresetData", ControlType = "Text", UserPin = false })
     table.insert(ctls, { Name = "PresetList", ControlType = "Text", UserPin = false })
-    for _, name in ipairs({ "PresetName", "PresetUrl", "PresetFavicon", "PresetStatus" }) do
+    for _, name in ipairs({ "PresetName", "PresetUrl", "PresetStatus" }) do
         table.insert(ctls, {
             Name = name, ControlType = "Indicator", IndicatorType = "Text", UserPin = false
         })
     end
+    table.insert(ctls, {
+        Name = "PresetFavicon", ControlType = "Button", ButtonType = "Momentary", UserPin = false
+    })
     for _, action in ipairs({ "Save", "Recall", "Delete" }) do
         table.insert(ctls, {
             Name = "Preset" .. action, ControlType = "Button", ButtonType = "Trigger", UserPin = false
@@ -159,22 +167,6 @@ function GetControls(props)
     })
 
     table.insert(ctls, {
-        Name = "favicon",
-        ControlType = "Indicator",
-        IndicatorType = "Text",
-        Count = props["Result Count"].Value,
-        UserPin = false
-    })
-
-    table.insert(ctls, {
-        Name = "Name",
-        ControlType = "Indicator",
-        IndicatorType = "Text",
-        Count = props["Result Count"].Value,
-        UserPin = false
-    })
-
-    table.insert(ctls, {
         Name = "SelectBtn",
         ControlType = "Button",
         ButtonType = "Trigger",
@@ -183,9 +175,9 @@ function GetControls(props)
     })
 
     table.insert(ctls, {
-        Name = "NowPlayingFavicon",
-        ControlType = "Indicator",
-        IndicatorType = "Text",
+        Name = "StationLogo",
+        ControlType = "Button",
+        ButtonType = "Momentary",
         Count = 1,
         UserPin = false
     })
@@ -199,8 +191,8 @@ function GetControlLayout(props)
     local graphics = { }
     local currentPage = props["page_index"].Value
     local resultCount = props["Result Count"].Value
-    local faviconPagesEnabled = props["Enable Favicon Pages"].Value
-    local presetPage = 2 + (faviconPagesEnabled and math.ceil(resultCount / RESULTS_PER_PAGE) or 0)
+    local logoPagesEnabled = props["Enable Logo Pages"].Value
+    local presetPage = 2 + (logoPagesEnabled and math.ceil(resultCount / RESULTS_PER_PAGE) or 0)
 
     layout["PresetData"] = { Style = "None" }
 
@@ -256,8 +248,8 @@ function GetControlLayout(props)
         layout["NowPlaying"] =
         {
             PrettyName = "Now Playing",
-            Position = faviconPagesEnabled and { 204,619 } or { 84,619 },
-            Size = faviconPagesEnabled and { 305,100 } or { 425,100 },
+            Position = logoPagesEnabled and { 204,619 } or { 84,619 },
+            Size = logoPagesEnabled and { 305,100 } or { 425,100 },
             Style = "Text",
             TextFontSize = 20,
             HTextAlign = "Center",
@@ -267,14 +259,14 @@ function GetControlLayout(props)
             StrokeWidth = 1,
         }
 
-        if faviconPagesEnabled then
-            layout["NowPlayingFavicon"] =
+        if logoPagesEnabled then
+            layout["StationLogo"] =
             {
-                PrettyName = "Now Playing Favicon",
+                PrettyName = "Now Playing Logo",
                 Position = { 84,619 },
                 Size = { 100,100 },
                 Color = { 255,255,255,255 },
-                Style = "Media",
+                Style = "Button",
                 CornerRadius = 8,
             }
         end
@@ -347,20 +339,20 @@ function GetControlLayout(props)
         }
         layout["PresetName"] = {
             PrettyName = "Presets~Station Name",
-            Position = faviconPagesEnabled and { 144,350 } or { 34,350 },
-            Size = faviconPagesEnabled and { 409,60 } or { 519,60 },
+            Position = logoPagesEnabled and { 144,350 } or { 34,350 },
+            Size = logoPagesEnabled and { 409,60 } or { 519,60 },
             Style = "Text", TextFontSize = 18, WordWrap = true,
         }
-        if faviconPagesEnabled then
+        if logoPagesEnabled then
             layout["PresetFavicon"] = {
-                PrettyName = "Presets~Favicon", Position = { 34,350 }, Size = { 100,100 },
-                Style = "Media", CornerRadius = 8,
+                PrettyName = "Presets~Logo", Position = { 34,350 }, Size = { 100,100 },
+                Style = "Button", CornerRadius = 8,
             }
         end
         layout["PresetUrl"] = {
             PrettyName = "Presets~Stream URL",
-            Position = faviconPagesEnabled and { 144,415 } or { 34,415 },
-            Size = faviconPagesEnabled and { 409,35 } or { 519,35 },
+            Position = logoPagesEnabled and { 144,415 } or { 34,415 },
+            Size = logoPagesEnabled and { 409,35 } or { 519,35 },
             Style = "Text", TextFontSize = 12,
         }
         for i, action in ipairs({ "Save", "Recall", "Delete" }) do
@@ -405,32 +397,6 @@ function GetControlLayout(props)
             local x = resultStartX + (column * columnWidth)
             local y = resultStartY + (row * rowHeight)
 
-            layout["favicon " .. i] =
-            {
-                PrettyName = string.format("Result %i Favicon", i),
-                Position = { x, y },
-                Size = { 60,tileHeight },
-                Style = "Media",
-                Color = { 255,255,255,255 },
-                CornerRadius = 8,
-                ZOrder = 1,
-            }
-            layout["Name " .. i] =
-            {
-                PrettyName = string.format("Result %i Name", i),
-                Position = { x + 68, y },
-                Size = { 180,tileHeight },
-                Style = "Text",
-                WordWrap = true,
-                TextFontSize = 15,
-                Color = { 0,0,0,0 },
-                TextColor = { 0,0,0 },
-                HTextAlign = "Center",
-                VTextAlign = "Center",
-                CornerRadius = 8,
-                StrokeWidth = 1,
-                ZOrder = 1,
-            }
             layout["SelectBtn " .. i] =
             {
                 PrettyName = string.format("Select Result %i", i),
@@ -439,13 +405,18 @@ function GetControlLayout(props)
                 Style = "Button",
                 ButtonVisualStyle = "Flat",
                 Legend = "",
+                FontSize = 15,
+                WordWrap = true,
+                HTextAlign = "Center",
+                VTextAlign = "Center",
                 Color = { 0,0,0,0 },
                 OffColor = { 0,0,0,0 },
                 StrokeColor = { 0,0,0,0 },
+                TextColor = { 0,0,0 },
                 UnlinkOffColor = true,
                 StrokeWidth = 0,
                 CornerRadius = 8,
-                ZOrder = 2,
+                ZOrder = 1,
             }
         end
     end
@@ -465,7 +436,7 @@ function GetPages(props)
         { name = "Search" }
     }
 
-    if props["Enable Favicon Pages"].Value then
+    if props["Enable Logo Pages"].Value then
         local resultPageCount = math.ceil(props["Result Count"].Value / RESULTS_PER_PAGE)
         for page = 1, resultPageCount do
             table.insert(pages, { name = "Results " .. page })
@@ -510,16 +481,271 @@ rapidjson = require("rapidjson")
 strSearch = Controls.StrSearch
 stations = {}
 searchRequestId = 0
-faviconUpdateIds = {}
 local currentStation = nil
 local stationRevision = 0
 local presets = {}
 local selectedPreset = 1
 local presetCount = Properties["Preset Count"].Value
-RESULT_COUNT = #Controls.favicon
+RESULT_COUNT = #Controls.SelectBtn
 
-DEFAULT_FAVICON = "https://i.postimg.cc/D0K9R9C9/white-leeg.jpg"
-FALLBACK_FAVICON = "https://i.postimg.cc/ZYsFzy7J/radio.png"
+local EMPTY_RESULT_FAVICON = false
+
+-- Artwork is fetched by the Core; UCI clients only receive an SVG legend.
+local MAX_LOGO_BYTES = 512 * 1024
+local MAX_LOGO_DIMENSION = 512
+local function svgLegend(svg)
+    return rapidjson.encode({
+        DrawChrome = false,
+        IconData = Crypto.Base64Encode(svg),
+        Legend = "",
+    })
+end
+local fallbackSvg = [[<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300">
+<rect x="35" y="90" width="230" height="165" rx="22" fill="#374151"/>
+<path d="M65 90 L225 40" stroke="#9ca3af" stroke-width="12" stroke-linecap="round"/>
+<circle cx="105" cy="173" r="46" fill="#9ca3af"/><circle cx="105" cy="173" r="29" fill="#374151"/>
+<rect x="172" y="126" width="60" height="18" fill="#9ca3af"/>
+<path d="M174 174 H233 M174 199 H233" stroke="#9ca3af" stroke-width="10"/>
+</svg>]]
+local fallbackLegend = svgLegend(fallbackSvg)
+
+local function resultTextColor()
+    local property = Properties["Result Color"]
+    local color = property and tostring(property.Value):match("^%s*(.-)%s*$") or "#ff000000"
+    if color:match("^#%x%x%x%x%x%x%x%x$") then
+        -- Q-SYS uses alpha first; SVG uses a separate opacity attribute.
+        return "#" .. color:sub(4), tonumber(color:sub(2, 3), 16) / 255
+    elseif color:match("^#%x%x%x%x%x%x$") then
+        return color, 1
+    end
+    return "#000000", 1
+end
+
+local function stationNameSvg(name)
+    local chars = {}
+    name = (name or ""):gsub("[%c]", " "):gsub("%s+", " ")
+    for char in name:gmatch("[%z\1-\127\194-\244][\128-\191]*") do chars[#chars + 1] = char end
+    local lines, first = {}, 1
+    while first <= #chars and #lines < 3 do
+        local last = math.min(first + 21, #chars)
+        if last < #chars and #lines < 2 then
+            for i = last, first + 1, -1 do
+                if chars[i] == " " then last = i - 1; break end
+            end
+        end
+        local line = table.concat(chars, "", first, last)
+        if #lines == 2 and last < #chars then
+            line = table.concat(chars, "", first, first + 18) .. "..."
+        end
+        lines[#lines + 1] = line:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;")
+        first = last + 1
+        while chars[first] == " " do first = first + 1 end
+    end
+    local color, opacity = resultTextColor()
+    local text = {}
+    for i, line in ipairs(lines) do
+        text[#text + 1] = string.format('<text x="158" y="%d" text-anchor="middle" font-family="Arial" font-size="15" fill="%s" fill-opacity="%.6f">%s</text>',
+            35 - (#lines - 1) * 8 + (i - 1) * 16, color, opacity, line)
+    end
+    return table.concat(text)
+end
+
+local function renderLogo(state, svg)
+    if state.resultIndex then
+        local station = stations[state.resultIndex]
+        svg = '<svg xmlns="http://www.w3.org/2000/svg" width="248" height="60" viewBox="0 0 248 60">'
+            .. '<defs><clipPath id="label"><rect x="68" y="0" width="180" height="60"/></clipPath></defs>'
+            .. '<g transform="scale(0.2)">' .. svg .. '</g>'
+            .. '<g clip-path="url(#label)">' .. stationNameSvg(station and station.name) .. '</g></svg>'
+    end
+    state.control.Legend = svgLegend(svg)
+end
+local logoStates = {}
+local activeLogoRequest = nil
+-- Keep just the most recent successful artwork, plus a dedicated active-station cache.
+local lastLogoUrl, lastLogoSvg, stationLogoUrl, stationLogoSvg
+local lastLogoFailureTime = nil
+
+local function logoFailure(reason)
+    local now = os.time()
+    if not lastLogoFailureTime or now - lastLogoFailureTime >= 10 then
+        print("Station logo: " .. reason .. "; using radio placeholder (messages limited to one per 10s)")
+        lastLogoFailureTime = now
+    end
+end
+
+local function registerLogo(control)
+    control.Boolean = false
+    -- Disabled controls are dimmed in Live/Emulate, including their SVG artwork.
+    -- Keep artwork enabled; the momentary handler clears presses without tuning.
+    control.IsDisabled = false
+    control.Legend = fallbackLegend
+    control.EventHandler = function(c) c.Boolean = false end
+    local state = { control = control, revision = 0 }
+    logoStates[#logoStates + 1] = state
+    return state
+end
+local stationLogo = registerLogo(Controls.StationLogo)
+local presetLogo = registerLogo(Controls.PresetFavicon)
+local resultLogos = {}
+for i, control in ipairs(Controls.SelectBtn) do
+    resultLogos[i] = registerLogo(control)
+    resultLogos[i].resultIndex = i
+end
+
+local function headerValue(headers, name)
+    for key, value in pairs(headers or {}) do
+        if type(key) == "string" and key:lower() == name then
+            if type(value) == "table" then value = value[1] end
+            return type(value) == "string" and value or nil
+        end
+    end
+    return nil
+end
+
+local function pngError(code, data, err, headers)
+    if err and err ~= "" then return "download error: " .. tostring(err) end
+    if code ~= 200 then return "HTTP " .. tostring(code) end
+    if type(data) ~= "string" or #data == 0 then return "empty image" end
+    local length = tonumber(headerValue(headers, "content-length"))
+    if #data > MAX_LOGO_BYTES or (length and length > MAX_LOGO_BYTES) then return "image exceeds 512 KiB" end
+    local contentType = headerValue(headers, "content-type")
+    if contentType then
+        contentType = contentType:lower():match("^%s*([^;%s]+)")
+        if contentType ~= "image/png" and contentType ~= "image/x-png"
+            and contentType ~= "application/octet-stream" then return "unexpected Content-Type" end
+    end
+    if data:sub(1, 8) ~= "\137PNG\r\n\26\n" then return "invalid PNG signature" end
+    local function uint32(pos)
+        local a, b, c, d = data:byte(pos, pos + 3)
+        return ((a * 256 + b) * 256 + c) * 256 + d
+    end
+    local pos, hasHeader, hasData = 9, false, false
+    while pos + 11 <= #data do
+        local size = uint32(pos)
+        local kind = data:sub(pos + 4, pos + 7)
+        if size > #data - pos - 11 then return "truncated PNG chunk" end
+        if not hasHeader then
+            if kind ~= "IHDR" or size ~= 13 then return "missing PNG header" end
+            local width, height = uint32(pos + 8), uint32(pos + 12)
+            if width < 1 or height < 1 or width > MAX_LOGO_DIMENSION or height > MAX_LOGO_DIMENSION then
+                return "invalid or oversized PNG dimensions"
+            end
+            local depth, color, compression, filter, interlace = data:byte(pos + 16, pos + 20)
+            local depths = { [0] = {1, 2, 4, 8, 16}, [2] = {8, 16}, [3] = {1, 2, 4, 8},
+                [4] = {8, 16}, [6] = {8, 16} }
+            local validDepth = false
+            for _, allowed in ipairs(depths[color] or {}) do
+                if depth == allowed then validDepth = true end
+            end
+            if not validDepth or compression ~= 0 or filter ~= 0 or interlace > 1 then
+                return "invalid PNG header fields"
+            end
+            hasHeader = true
+        elseif kind == "IHDR" then return "duplicate PNG header" end
+        if kind == "IDAT" and size > 0 then hasData = true end
+        if kind == "IEND" then
+            if size == 0 and hasData and pos + 11 == #data then return nil end
+            return "invalid PNG ending"
+        end
+        pos = pos + size + 12
+    end
+    return "incomplete PNG"
+end
+
+local pumpLogos
+pumpLogos = function()
+    if activeLogoRequest then return end
+    for _, state in ipairs(logoStates) do
+        if state.pending then
+            state.pending = false
+            local url, revision = state.url, state.revision
+            local cached = url == stationLogoUrl and stationLogoSvg
+                or url == lastLogoUrl and lastLogoSvg
+            if cached then
+                renderLogo(state, cached)
+                if state == stationLogo then stationLogoUrl, stationLogoSvg = url, cached end
+            else
+                local request = { state = state, revision = revision }
+                activeLogoRequest = request
+                local function done(_, code, data, err, headers)
+                    if activeLogoRequest ~= request then return end
+                    activeLogoRequest = nil
+                    if state.revision == revision then
+                        local reason = pngError(code, data, err, headers)
+                        if not reason then
+                            local ok, svg = pcall(function()
+                                local svgString = '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="300" height="300" viewBox="0 0 300 300">'
+                                    .. '<image x="10" y="10" width="280" height="280" preserveAspectRatio="xMidYMid meet" xlink:href="data:image/png;base64,'
+                                    .. Crypto.Base64Encode(data) .. '"/></svg>'
+                                renderLogo(state, svgString)
+                                return svgString
+                            end)
+                            if ok then
+                                lastLogoUrl, lastLogoSvg = url, svg
+                                if state == stationLogo then stationLogoUrl, stationLogoSvg = url, svg end
+                            else reason = "SVG encoding failed" end
+                        end
+                        if reason then
+                            renderLogo(state, fallbackSvg)
+                            logoFailure(reason)
+                        end
+                    end
+                    pumpLogos()
+                end
+                -- Download buffers the body before this callback. The byte limit above
+                -- bounds encoding/cache memory, not HttpClient's receive buffer.
+                local ok, err = pcall(function()
+                    HttpClient.Download {
+                        Url = "https://images.weserv.nl/?url=" .. urlEncode(url)
+                            .. "&output=png&w=300&h=300&fit=inside&we",
+                        Headers = { Accept = "image/png" }, Timeout = 10, EventHandler = done
+                    }
+                end)
+                if not ok then done(nil, 0, nil, tostring(err), {}) end
+                return
+            end
+        end
+    end
+end
+
+local function setLogo(state, url, stationKey)
+    url = type(url) == "string" and url:match("^%s*(.-)%s*$") or ""
+    if not url:match("^https?://[^/%s?#]+") or url:find("[%s%c]") then url = "" end
+    if state.url == url and state.stationKey == stationKey then return end
+    state.url, state.stationKey = url, stationKey
+    state.revision = state.revision + 1
+    state.control.Boolean = false
+    renderLogo(state, fallbackSvg)
+    state.pending = url ~= "" and Properties["Enable Logo Pages"].Value
+    local cached = url == stationLogoUrl and stationLogoSvg
+        or url == lastLogoUrl and lastLogoSvg
+    if state.pending and cached then
+        renderLogo(state, cached)
+        state.pending = false
+        if state == stationLogo then stationLogoUrl, stationLogoSvg = url, cached end
+    end
+    pumpLogos()
+end
+
+function setFaviconControl(index, url)
+    local hidden = url == EMPTY_RESULT_FAVICON
+    local station = stations[index]
+    local key = not hidden and station and ((station.url or "") .. "\n" .. (station.name or "")) or nil
+    setLogo(resultLogos[index], hidden and "" or url, key)
+    Controls.SelectBtn[index].IsInvisible = hidden
+end
+
+function setNowPlayingFavicon(url)
+    setLogo(stationLogo, url, currentStation and currentStation.url)
+end
+
+function funcResetUI()
+  for i, _ in pairs(Controls.SelectBtn) do
+    setFaviconControl(i, EMPTY_RESULT_FAVICON)
+  end
+
+end
 
 Components = Component.GetComponents()
 URLReceiverComponents = {}
@@ -536,7 +762,7 @@ function setReceiver(name)
   stationRevision = stationRevision + 1
   currentStation = nil
   Controls.NowPlaying.String = ""
-  Controls.NowPlayingFavicon.String = ""
+  setNowPlayingFavicon("")
   if not name or name == "" then
     selectedreceiver = nil
     return
@@ -550,76 +776,6 @@ setReceiver(Controls.ReceiverComponent.String)
 Controls.ReceiverComponent.EventHandler = function()
   setReceiver(Controls.ReceiverComponent.String)
   funcGetCurrentStation()
-end
-
-function imageControlString(url)
-  return rapidjson.encode({
-    Protocol = "Image",
-    URLs = {url},
-    ImageTimeSeconds = 10.0
-  })
-end
-
-function cacheBustUrl(url)
-    if not url or url == "" then return url end
-
-    local sep = "?"
-    if string.find(url, "?", 1, true) then
-        sep = "&"
-    end
-
-    return url .. sep .. "qsys_t=" .. tostring(os.time()) .. "_" .. tostring(math.random(100000,999999))
-end
-
-function setFaviconControl(index, url)
-  faviconUpdateIds[index] = (faviconUpdateIds[index] or 0) + 1
-  local updateId = faviconUpdateIds[index]
-
-  Controls.favicon[index].IsInvisible = true
-  Controls.Name[index].IsInvisible = true
-  if Controls.SelectBtn and Controls.SelectBtn[index] then
-    Controls.SelectBtn[index].IsInvisible = true
-  end
-
-  if url == DEFAULT_FAVICON then
-    Controls.favicon[index].String = imageControlString(cacheBustUrl(url))
-    return
-  end
-
-  Timer.CallAfter(function()
-    if faviconUpdateIds[index] == updateId then
-      Controls.favicon[index].String = imageControlString(cacheBustUrl(url))
-
-      Timer.CallAfter(function()
-        if faviconUpdateIds[index] == updateId then
-          Controls.favicon[index].IsInvisible = false
-          Controls.Name[index].IsInvisible = false
-          if Controls.SelectBtn and Controls.SelectBtn[index] then
-            Controls.SelectBtn[index].IsInvisible = false
-          end
-        end
-      end, 0.2)
-    end
-  end, 0.2)
-end
-
-function setNowPlayingFavicon(url)
-  if not Controls.NowPlayingFavicon then
-    return
-  end
-
-  local displayUrl = cacheBustUrl(url or FALLBACK_FAVICON)
-  Controls.NowPlayingFavicon.String = imageControlString(displayUrl)
-end
-
-function funcResetUI()
-  for i, _ in pairs(Controls.favicon) do
-    setFaviconControl(i, DEFAULT_FAVICON)
-  end
-
-  for i, _ in pairs(Controls.Name) do
-          Controls.Name[i].String = ""
-  end
 end
 
 function formatStationName(name)
@@ -650,7 +806,7 @@ function tuneStation(station)
   stationRevision = stationRevision + 1
   currentStation = { url = station.url, name = station.name or station.url, favicon = station.favicon or "" }
   Controls.NowPlaying.String = formatStationName(currentStation.name)
-  setNowPlayingFavicon(station.displayFavicon or convertFavicon(currentStation.favicon))
+  setNowPlayingFavicon(currentStation.favicon)
   return true
 end
 
@@ -658,26 +814,6 @@ function selectStation(index)
   if tuneStation(stations[index]) then
     Controls.StrSearchResult.Value = index
   end
-end
-
-function convertFavicon(url)
-    if not url or url == "" then
-        return FALLBACK_FAVICON
-    end
-
-    url = string.match(url, "^%s*(.-)%s*$")
-    if url == "" then
-        return FALLBACK_FAVICON
-    end
-
-    return "https://images.weserv.nl/?url="
-        .. urlEncode(string.gsub(url, "^https?://", ""))
-        .. "&output=png"
-        .. "&default="
-        .. urlEncode(FALLBACK_FAVICON)
-        .. "&n="
-        .. tostring(os.time())
-        .. tostring(math.random(1000,9999))
 end
 
 local function refreshPresets()
@@ -691,7 +827,7 @@ local function refreshPresets()
     local preset = presets[tostring(selectedPreset)]
     Controls.PresetName.String = preset and preset.name or "Empty preset"
     Controls.PresetUrl.String = preset and preset.url or ""
-    Controls.PresetFavicon.String = preset and imageControlString(convertFavicon(preset.favicon)) or ""
+    setLogo(presetLogo, preset and preset.favicon or "", preset and preset.url)
     Controls.PresetRecall.IsDisabled = preset == nil
     Controls.PresetDelete.IsDisabled = preset == nil
 end
@@ -836,21 +972,11 @@ function funcGetRadio(requestId, tbl, code, data, err, headers)
           choices[i] = s.displayName
 
           if s.favicon and s.favicon ~= "" then
-            faviconUrls[i] = convertFavicon(s.favicon)
+            faviconUrls[i] = s.favicon
           else
-            faviconUrls[i] = FALLBACK_FAVICON
+            faviconUrls[i] = ""
           end
-          s.displayFavicon = faviconUrls[i]
 
-          if s.displayName and s.displayName ~= "" then
-            Controls.Name[i].String = s.displayName
-            Controls.Name[i].IsInvisible = false
-            if Controls.SelectBtn and Controls.SelectBtn[i] then
-                Controls.SelectBtn[i].IsInvisible = false
-            end
-          else
-            Controls.Name[i].String = ""
-          end
         end
     end
 
@@ -860,15 +986,8 @@ function funcGetRadio(requestId, tbl, code, data, err, headers)
         Controls.StrSearchResult.Value = 1
     end
 
-    -- Put favicon URLs into the controls last, after results are filtered and named
+    -- Queue artwork after results are filtered and named.
     for i, favicon in ipairs(faviconUrls) do
-        local raw = stations[i].favicon
-        if raw and raw ~= "" then
-            print(string.format("Result %02d favicon for '%s': raw=%s display=%s", i, stations[i].name or "", raw, favicon))
-        else
-            print(string.format("Result %02d favicon for '%s': raw=None display=%s", i, stations[i].name or "", favicon))
-        end
-
         setFaviconControl(i, favicon)
     end
 end
@@ -969,6 +1088,8 @@ end
 if Controls.SelectBtn then
   for i, btn in ipairs(Controls.SelectBtn) do
     btn.EventHandler = function()
+      btn.Boolean = false
+      if btn.IsInvisible then return end
       selectStation(i)
     end
   end
@@ -999,7 +1120,7 @@ function funcRestoreNowPlaying(tbl, code, data, err, headers, streamUrl, revisio
     if stations and stations[1] and stations[1].name then
         currentStation = { url = streamUrl, name = stations[1].name, favicon = stations[1].favicon or "" }
         Controls.NowPlaying.String = formatStationName(stations[1].name)
-        setNowPlayingFavicon(convertFavicon(stations[1].favicon))
+        setNowPlayingFavicon(currentStation.favicon)
         print("Restored station: " .. stations[1].name)
     end
 end
