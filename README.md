@@ -60,8 +60,6 @@ For **Q-SYS Designer V9.13**, use [plugin V2.3.0](Previous_releases/Q-sys-Plugin
 | `Preset Count` | Integer | 10 | 1-40 | Sets the number of selectable slots on the Presets page |
 | `Enable Logo Pages` | Boolean | true | true/false | Shows the favicon result pages, now-playing artwork, and preset artwork. When disabled, Search and Presets remain available without artwork. |
 
-**Result-button text colour:** Station names use native Q-SYS button text. Set Text Color on the ResultName controls in Designer/UCI. The former Result Color property has been removed.
-
 ---
 
 ### Control Pins
@@ -212,7 +210,7 @@ Preset data is held in a persistent text control within the Q-SYS design. Save y
 
 When favicon pages are enabled, the Core downloads artwork using `HttpClient.Download` through `images.weserv.nl`, requesting a PNG fitted within 300 × 300 pixels. Each PNG is base64-encoded inside an SVG `<image>` with `preserveAspectRatio="xMidYMid meet"`; the complete SVG is then base64-encoded into the button Legend's JSON `IconData`, with `DrawChrome=false`. No EzSVG dependency is needed. UCI clients receive the embedded artwork rather than downloading favicon URLs themselves.
 
-Artwork buttons stay enabled to avoid Q-SYS dimming their SVGs in Live/Emulate. The Now Playing and preset artwork handlers immediately clear presses without tuning. Each result tile is one trigger button with the logo and station name drawn together in SVG. Names wrap to three lines, with an ellipsis for longer names. Set the plugin's `Result Color` property to change result text colour: `#ff000000` is opaque black, `#ffff0000` is opaque red, and `#ffffffff` is opaque white. Eight-digit values use `#AARRGGBB`; six-digit `#RRGGBB` values are also accepted as opaque. Invalid values fall back to opaque black. Alpha applies only to the text, not the logo. Designer/UCI Text Color does not change SVG text. Pressing anywhere on the tile selects that station. Missing or invalid favicon URLs, failed downloads, non-200 responses, unexpected Content-Type, empty data, and structurally invalid PNGs show a locally generated radio icon. Downloads are serialized with active-station artwork taking priority over pending preset and result artwork. Selection changes invalidate old responses and replace pending work; the last successful logo/URL is cached, with a separate cache for the active station. Repeated Now Playing updates for the same station/favicon do not retry downloads, including failed downloads. Select another station and return to retry a failure.
+Artwork buttons stay enabled to avoid Q-SYS dimming their SVGs in Live/Emulate. The Now Playing and preset artwork handlers immediately clear presses without tuning. Each result tile has SVG artwork in the left quarter and a native station-name button in the right three quarters. Station names are centered and wrap within the text area. Use the normal Designer/UCI text settings to customize their appearance. Pressing either area selects the station. Missing or invalid favicon URLs, failed downloads, non-200 responses, unexpected Content-Type, empty data, and structurally invalid PNGs show a locally generated radio icon. Downloads are serialized with active-station artwork taking priority over pending preset and result artwork. Selection changes invalidate old responses and replace pending work; the last successful logo/URL is cached, with a separate cache for the active station. Repeated Now Playing updates for the same station/favicon do not retry downloads, including failed downloads. Select another station and return to retry a failure.
 
 Images above 512 KiB or 512 pixels on either axis are rejected before base64 encoding. PNG signature, chunk boundaries, header, image-data presence, and ending are checked; this is not a full PNG decoder or checksum validation. The [Q-SYS HttpClient API](https://help.qsys.com/Content/Control_Scripting/Using_Lua_in_Q-Sys/HttpClient.htm) buffers the response before calling the handler and exposes no streaming receive-size limit, so the 512 KiB check limits processing/cache memory rather than imposing a hard network receive cap. Conversion dimensions and a 10-second timeout reduce exposure. Failure messages are limited to one per 10 seconds. No artwork is downloaded when favicon pages are disabled.
 
@@ -267,7 +265,7 @@ After upgrading, replace any UCI reference to `NowPlayingFavicon` with `StationL
 ### 3.3.0 - 2026-09-18
 
 - Replaced Media Display artwork with chrome-free SVG button legends for Now Playing, search results, and preset previews.
-- Combined each result's logo, wrapped SVG station name, and selection action into one `SelectBtn` button; added `Result Color` for text colour and alpha.
+- Combined each result's logo, wrapped SVG station name, and selection action into one `SelectBtn` button.
 - Added Core-side PNG downloads, a generated radio fallback, HTTP/content validation, and image size checks.
 - Serialized artwork downloads, ignored stale responses, and cached successful logos without repeated Now Playing downloads.
 - Renamed the active-station artwork control to `StationLogo`; retained existing search, receiver, and preset behavior.
