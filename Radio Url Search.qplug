@@ -424,8 +424,8 @@ function GetControlLayout(props)
                 x + tileWidth / 4, y, tileWidth * 3 / 4, tileHeight, {
                     ButtonStyle = "Trigger", ButtonVisualStyle = "Flat", Legend = "",
                     FontSize = 11, WordWrap = true,
-                    Color = { 0,0,0,0 }, OffColor = { 0,0,0,0 },
-                    StrokeWidth = 0, UnlinkOffColor = true,
+                    -- Inherit theme colors; transparent black can select white contrast text.
+                    StrokeWidth = 0,
                 })
         end
     end
