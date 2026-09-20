@@ -61,7 +61,7 @@ For Q-SYS Designer V10.0 or later, use V3.4.0 with its embedded receiver.
 
 ---
 
-**Result-button text colour:** Station names use native Q-SYS button text. Set Text Color on the ResultName controls in Designer/UCI. The former Result Color property has been removed.
+**Result-button text colour:** Station names use native Q-SYS button text. Set Text Color on the ResultName controls in Designer/UCI.
 
 ---
 
@@ -193,13 +193,11 @@ selected URL Receiver -> url
 
 When logo pages are enabled, the Core downloads artwork using `HttpClient.Download` through `images.weserv.nl`, requesting a PNG fitted within 300 × 300 pixels. Each PNG is base64-encoded inside an SVG `<image>` with `preserveAspectRatio="xMidYMid meet"`; the complete SVG is then base64-encoded into the button Legend's JSON `IconData`, with `DrawChrome=false`. No EzSVG dependency is needed. UCI clients receive the embedded artwork rather than downloading favicon URLs themselves.
 
-Artwork buttons stay enabled to avoid Q-SYS dimming their SVGs in Live/Emulate. The Now Playing and preset artwork handlers immediately clear presses without tuning. Each result tile is one trigger button with the logo and station name drawn together in SVG. Names wrap to three lines, with an ellipsis for longer names. Set the plugin's `Result Color` property to change result text colour: `#ff000000` is opaque black, `#ffff0000` is opaque red, and `#ffffffff` is opaque white. Eight-digit values use `#AARRGGBB`; six-digit `#RRGGBB` values are also accepted as opaque. Invalid values fall back to opaque black. Alpha applies only to the text, not the logo. Designer/UCI Text Color does not change SVG text. Pressing anywhere on the tile selects that station. Missing or invalid favicon URLs, failed downloads, non-200 responses, unexpected Content-Type, empty data, and structurally invalid PNGs show a locally generated radio icon. Downloads are serialized with active-station artwork taking priority over pending preset and result artwork. Selection changes invalidate old responses and replace pending work; the last successful logo/URL is cached, with a separate cache for the active station. Repeated Now Playing updates for the same station/favicon do not retry downloads, including failed downloads. Select another station and return to retry a failure.
+Artwork buttons stay enabled to avoid Q-SYS dimming their SVGs in Live/Emulate. The Now Playing and preset artwork handlers immediately clear presses without tuning. Each result tile has SVG artwork in the left quarter and a native station-name button in the right three quarters. Station names are centered and wrap within the text area. Use the normal Designer/UCI text settings to customize their appearance. Pressing either area selects the station. Missing or invalid favicon URLs, failed downloads, non-200 responses, unexpected Content-Type, empty data, and structurally invalid PNGs show a locally generated radio icon. Downloads are serialized with active-station artwork taking priority over pending preset and result artwork. Selection changes invalidate old responses and replace pending work; the last successful logo/URL is cached, with a separate cache for the active station. Repeated Now Playing updates for the same station/favicon do not retry downloads, including failed downloads. Select another station and return to retry a failure.
 
 Images above 512 KiB or 512 pixels on either axis are rejected before base64 encoding. PNG signature, chunk boundaries, header, image-data presence, and ending are checked; this is not a full PNG decoder or checksum validation. The [Q-SYS HttpClient API](https://help.qsys.com/Content/Control_Scripting/Using_Lua_in_Q-Sys/HttpClient.htm) buffers the response before calling the handler and exposes no streaming receive-size limit, so the 512 KiB check limits processing/cache memory rather than imposing a hard network receive cap. Conversion dimensions and a 10-second timeout reduce exposure. Failure messages are limited to one per 10 seconds. No artwork is downloaded when logo pages are disabled.
 
 After upgrading, check the renamed `Enable Logo Pages` property and reselect your external URL Receiver if necessary. Replace any UCI reference to `NowPlayingFavicon` with `StationLogo`; preset artwork changes from a text indicator to a button. Result tiles now pair `SelectBtn` (artwork) with `ResultName` (native text). Update existing UCI result tiles by placing both controls beside each other in a 1:3 width ratio.
-
-Q-SYS Designer 9.13/Core verification is still required: SVG data-URI rendering and full-colour artwork, native text styling and icon/text positioning, and press-reset behavior in Designer and UCI clients, HTTPS conversion from PNG/SVG/ICO sources, missing/broken/oversized images, rapid selection during downloads, preset save/reopen and recall, and external URL Receiver playback and Now Playing behavior.
 
 ---
 
@@ -248,16 +246,14 @@ Q-SYS Designer 9.13/Core verification is still required: SVG data-URI rendering 
 - Added conservative logo-padding trimming and consistent artwork sizing with rounded white backgrounds, including the fallback icon. Artwork is inset instead of clipped.
 - Existing UCI result tiles must include both `SelectBtn` and `ResultName`; native text now supports Designer/UCI text styling.
 - Retained the external receiver selector and V9.13 architecture; V2.2.0 remains archived.
-- Validation: mocked Lua regression checks pass; Q-SYS Designer/Core visual and playback verification remains required.
 
 ### 2.2.0 - 2026-09-18
 
 - Ported V3.3.0 SVG station logos to the V2 plugin for Designer 9.13, retaining external URL Receiver selection.
 - Combined each result logo, wrapped name, and selection action into one button.
-- Added Result Color for SVG text and renamed Enable Favicon Pages to Enable Logo Pages (enabled by default).
+- Renamed Enable Favicon Pages to Enable Logo Pages (enabled by default).
 - Added Core-side PNG downloads, local fallback artwork, response validation, caching, serialized downloads, and stale-response protection.
 - Reset the active logo when changing receivers and ignore artwork responses from the previous receiver selection.
-- Local regression tests pass; verify the final plugin in Q-SYS Designer 9.13 and on a Core before deployment.
 
 
 ### 2.1.0 - 2026-09-10
