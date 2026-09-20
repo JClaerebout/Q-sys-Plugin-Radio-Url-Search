@@ -61,8 +61,6 @@ For Q-SYS Designer V10.0 or later, use V3.4.0 with its embedded receiver.
 
 ---
 
-**Result-button text colour:** Station names use native Q-SYS button text. Set Text Color on the ResultName controls in Designer/UCI.
-
 ---
 
 ### Station Presets
