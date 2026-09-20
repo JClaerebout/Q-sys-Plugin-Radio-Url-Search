@@ -10,9 +10,9 @@ The plugin uses the public Radio Browser API to retrieve countries and station r
 
 ## Compatibility
 
-V2.3.0 is the V2 maintenance release targeting Q-SYS Designer V9.13. It retains the external URL Receiver integration and does not embed a receiver.
+V2.2.0 is the V2 maintenance release targeting Q-SYS Designer V9.13. It retains the external URL Receiver integration and does not embed a receiver.
 
-For Q-SYS Designer V10.0 or later, use V3.4.0 with its embedded receiver.
+For Q-SYS Designer V10.0 or later, [V3.3.0](https://github.com/JClaerebout/Q-sys-Plugin-Radio-Url-Search/releases/tag/V3.3.0) remains the latest release.
 
 ---
 
@@ -42,7 +42,7 @@ For Q-SYS Designer V10.0 or later, use V3.4.0 with its embedded receiver.
 | Property | Value |
 | --- | --- |
 | Name | Radio Url Search |
-| Version | 2.3.0 |
+| Version | 2.2.0 |
 | Author | Jens Claerebout |
 | Protocol | HTTPS / Radio Browser API |
 | Required Q-SYS Component | URL Receiver |
@@ -55,13 +55,16 @@ For Q-SYS Designer V10.0 or later, use V3.4.0 with its embedded receiver.
 
 | Property | Type | Default | Range | Description |
 | --- | --- | --- | --- | --- |
+| `Result Color` | String | `#ff000000` | `#AARRGGBB` or `#RRGGBB` | Sets SVG result-name colour; invalid values use opaque black |
 | `Preset Count` | Integer | 10 | 1-40 | Number of selectable preset slots |
 | `Enable Logo Pages` | Boolean | true | true/false | Shows Results pages and now-playing/preset artwork when enabled |
 | `Result Count` | Integer | 20 | 1-40 | Sets the number of visual station result controls and creates one result page per group of 10 |
 
 ---
 
-**Result-button text colour:** Station names use native Q-SYS button text. Set Text Color on the ResultName controls in Designer/UCI. The former Result Color property has been removed.
+**Result-button text colour:** The normal **Text Color** setting in Designer/UCI has **no effect** on result-button station names because the text is drawn inside the SVG. Select the plugin component and change **Properties → Result Color** instead. This sets the text colour for all result buttons.
+
+Examples: `#ff000000` = opaque black, `#ffffffff` = opaque white, `#ffff0000` = opaque red (`#AARRGGBB`, alpha first).
 
 ---
 
@@ -96,7 +99,7 @@ These controls are used inside the plugin UI and are not exposed as user pins:
 | `StrSearchResult` | ListBox | Displays matching radio stations on the Search page |
 
 
-| `SelectBtn` / `ResultName` | Trigger Buttons (1-40 each) | SVG artwork occupies the left quarter and centered native station text occupies the right three quarters; either button selects the station |
+| `SelectBtn` | Trigger Button (1-40) | Displays the logo and wrapped station name in one SVG; pressing selects the station |
 | `StationLogo` | Momentary Button | Displays the active station logo using SVG |
 | `code` | Text | Plugin code/debug text control |
 | `PresetList` | ListBox | Selects a numbered preset slot without starting playback |
@@ -120,10 +123,6 @@ The plugin UI always contains Search and Presets pages. Enable `Enable Logo Page
 - Now-playing station name and artwork
 
 ---
-
-Search and Presets use an approximately 560 × 420 layout with compact 12-point labels, aligned fields, and thin group borders with a corner radius of 5. Result pages use the same border styling with tighter spacing between station tiles.
-
-Station artwork fits within a consistent 56 × 56 area on all pages, preserving its proportions. The image service conservatively trims uniform outer padding before resizing so padded logos fill more of the available space. Logos sit inside a small safety margin on a rounded white tile; the artwork itself is not clipped. Transparent areas show the white tile, and backgrounds within the logo itself are retained. Unusual shapes or nonuniform padding can still produce differences in apparent size.
 
 ## Communication
 
@@ -197,9 +196,9 @@ Artwork buttons stay enabled to avoid Q-SYS dimming their SVGs in Live/Emulate. 
 
 Images above 512 KiB or 512 pixels on either axis are rejected before base64 encoding. PNG signature, chunk boundaries, header, image-data presence, and ending are checked; this is not a full PNG decoder or checksum validation. The [Q-SYS HttpClient API](https://help.qsys.com/Content/Control_Scripting/Using_Lua_in_Q-Sys/HttpClient.htm) buffers the response before calling the handler and exposes no streaming receive-size limit, so the 512 KiB check limits processing/cache memory rather than imposing a hard network receive cap. Conversion dimensions and a 10-second timeout reduce exposure. Failure messages are limited to one per 10 seconds. No artwork is downloaded when logo pages are disabled.
 
-After upgrading, check the renamed `Enable Logo Pages` property and reselect your external URL Receiver if necessary. Replace any UCI reference to `NowPlayingFavicon` with `StationLogo`; preset artwork changes from a text indicator to a button. Result tiles now pair `SelectBtn` (artwork) with `ResultName` (native text). Update existing UCI result tiles by placing both controls beside each other in a 1:3 width ratio.
+After upgrading, check the renamed `Enable Logo Pages` property and reselect your external URL Receiver if necessary. Replace any UCI reference to `NowPlayingFavicon` with `StationLogo`; preset artwork changes from a text indicator to a button. Result tiles now use only `SelectBtn`; remove old `favicon` and `Name` controls from existing UCIs and use the combined `SelectBtn` instead.
 
-Q-SYS Designer 9.13/Core verification is still required: SVG data-URI rendering and full-colour artwork, native text styling and icon/text positioning, and press-reset behavior in Designer and UCI clients, HTTPS conversion from PNG/SVG/ICO sources, missing/broken/oversized images, rapid selection during downloads, preset save/reopen and recall, and external URL Receiver playback and Now Playing behavior.
+Q-SYS Designer 9.13/Core verification is still required: SVG data-URI rendering and full-colour artwork, Result Color (including alpha) and icon/text positioning, and press-reset behavior in Designer and UCI clients, HTTPS conversion from PNG/SVG/ICO sources, missing/broken/oversized images, rapid selection during downloads, preset save/reopen and recall, and external URL Receiver playback and Now Playing behavior.
 
 ---
 
@@ -238,16 +237,6 @@ Q-SYS Designer 9.13/Core verification is still required: SVG data-URI rendering 
 ---
 
 ## Changelog
-
-### 2.3.0 - 2026-09-20
-
-- Reduced Search and Presets to approximately 560 × 420, with compact controls and group boxes with a corner radius of 5.
-- Centered control text while preserving label alignment.
-- Split result tiles into SVG artwork in the left quarter and native, centered station text in the right three quarters. Either area selects the station.
-- Added conservative logo-padding trimming and consistent artwork sizing with rounded white backgrounds, including the fallback icon. Artwork is inset instead of clipped.
-- Existing UCI result tiles must include both `SelectBtn` and `ResultName`; native text now supports Designer/UCI text styling.
-- Retained the external receiver selector and V9.13 architecture; V2.2.0 remains archived.
-- Validation: mocked Lua regression checks pass; Q-SYS Designer/Core visual and playback verification remains required.
 
 ### 2.2.0 - 2026-09-18
 
