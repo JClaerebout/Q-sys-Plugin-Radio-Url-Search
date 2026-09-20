@@ -12,7 +12,7 @@ The plugin uses the public Radio Browser API to retrieve countries and station r
 
 **Plugin V3.x requires Q-SYS Designer V10.0 or later.**
 
-For **Q-SYS Designer V9.13**, use [plugin V2.3.0](Previous_releases/Q-sys-Plugin-Radio-Url-Search-2.3.0/README.md), which retains the external URL Receiver integration.
+If you use **Q-SYS Designer V9.13 or earlier**, use [plugin V2.1.0](https://github.com/JClaerebout/Q-sys-Plugin-Radio-Url-Search/releases/tag/V2.1.0).
 
 ---
 
@@ -43,7 +43,7 @@ For **Q-SYS Designer V9.13**, use [plugin V2.3.0](Previous_releases/Q-sys-Plugin
 | Property | Value |
 | --- | --- |
 | Name | Radio Url Search |
-| Version | 3.4.0 |
+| Version | 3.3.0 |
 | Author | Jens Claerebout |
 | Protocol | HTTPS / Radio Browser API |
 | Embedded Q-SYS Component | Media Stream Receiver |
@@ -57,10 +57,13 @@ For **Q-SYS Designer V9.13**, use [plugin V2.3.0](Previous_releases/Q-sys-Plugin
 | Property | Type | Default | Range | Description |
 | --- | --- | --- | --- | --- |
 | `Result Count` | Integer | 20 | 1-40 | Sets the number of visual station result controls and creates one result page per group of 10 |
+| `Result Color` | String | `#ff000000` | `#AARRGGBB` or `#RRGGBB` | Sets SVG result-name colour; invalid values use opaque black |
 | `Preset Count` | Integer | 10 | 1-40 | Sets the number of selectable slots on the Presets page |
-| `Enable Logo Pages` | Boolean | true | true/false | Shows the favicon result pages, now-playing artwork, and preset artwork. When disabled, Search and Presets remain available without artwork. |
+| `Enable Favicon Pages` | Boolean | false | true/false | Shows the favicon result pages, now-playing artwork, and preset artwork. When disabled, Search and Presets remain available without artwork. |
 
-**Result-button text colour:** Station names use native Q-SYS button text. Set Text Color on the ResultName controls in Designer/UCI. The former Result Color property has been removed.
+**Result-button text colour:** The normal **Text Color** setting in Designer/UCI has **no effect** on result-button station names because the text is drawn inside the SVG. Select the plugin component and change **Properties → Result Color** instead. This sets the text colour for all result buttons.
+
+Examples: `#ff000000` = opaque black, `#ffffffff` = opaque white, `#ffff0000` = opaque red (`#AARRGGBB`, alpha first).
 
 ---
 
@@ -102,7 +105,7 @@ These controls are used inside the plugin UI and are not exposed as user pins:
 | `interface` | ComboBox | Selects the network interface used by the embedded receiver |
 | `Country_Code` | ComboBox | Selects the country used to filter station searches |
 | `StrSearchResult` | ListBox | Displays matching radio stations on the Search page |
-| `SelectBtn` / `ResultName` | Trigger Buttons (1-40 each) | SVG artwork occupies the left quarter and centered native station text occupies the right three quarters; either button selects the station |
+| `SelectBtn` | Trigger Button (1-40) | Displays the logo and station-name text together in one SVG button; pressing anywhere selects that station |
 | `StationLogo` | Momentary Button | Displays the active station's SVG logo without button chrome; presses reset immediately |
 | `code` | Text | Plugin code/debug text control |
 | `PresetList` | ListBox | Selects a numbered preset slot without starting playback |
@@ -116,10 +119,10 @@ These controls are used inside the plugin UI and are not exposed as user pins:
 
 ## UI Layout
 
-The plugin UI always contains Search and Presets pages. When `Enable Logo Pages` is enabled, it also includes dynamically generated Results pages. The UI provides:
+The plugin UI always contains Search and Presets pages. When `Enable Favicon Pages` is enabled, it also includes dynamically generated Results pages. The UI provides:
 
 - Media Stream Receiver status
-- Receiver Enable toggle above the stereo controls in a compact Receiver panel
+- Receiver Enable toggle in its own box above Receiver Channels
 - Network interface selection
 - Stereo channel gain, invert, mute, and peak-level controls
 - Country selection
@@ -127,10 +130,6 @@ The plugin UI always contains Search and Presets pages. When `Enable Logo Pages`
 - Search result list on page 1
 - Result pages starting at page 2, with up to 10 artwork tiles per page
 - Now-playing station name and optional artwork
-
-Search and Presets use an approximately 560 × 420 layout with compact 12-point labels, aligned fields, and thin group borders with a corner radius of 5. Result pages use the same border styling with tighter spacing between station tiles.
-
-Station artwork fits within a consistent 56 × 56 area on all pages, preserving its proportions. The image service conservatively trims uniform outer padding before resizing so padded logos fill more of the available space. Logos sit inside a small safety margin on a rounded white tile; the artwork itself is not clipped. Transparent areas show the white tile, and backgrounds within the logo itself are retained. Unusual shapes or nonuniform padding can still produce differences in apparent size.
 
 ---
 
@@ -216,9 +215,9 @@ Artwork buttons stay enabled to avoid Q-SYS dimming their SVGs in Live/Emulate. 
 
 Images above 512 KiB or 512 pixels on either axis are rejected before base64 encoding. PNG signature, chunk boundaries, header, image-data presence, and ending are checked; this is not a full PNG decoder or checksum validation. The [Q-SYS HttpClient API](https://help.qsys.com/Content/Control_Scripting/Using_Lua_in_Q-Sys/HttpClient.htm) buffers the response before calling the handler and exposes no streaming receive-size limit, so the 512 KiB check limits processing/cache memory rather than imposing a hard network receive cap. Conversion dimensions and a 10-second timeout reduce exposure. Failure messages are limited to one per 10 seconds. No artwork is downloaded when favicon pages are disabled.
 
-After upgrading, replace any UCI reference to `NowPlayingFavicon` with `StationLogo`; preset artwork changes from a text indicator to a button. Result tiles now pair `SelectBtn` (artwork) with `ResultName` (native text). Update existing UCI result tiles by placing both controls beside each other in a 1:3 width ratio.
+After upgrading, replace any UCI reference to `NowPlayingFavicon` with `StationLogo`; preset artwork changes from a text indicator to a button. Result tiles now use only `SelectBtn`; remove old `favicon` and `Name` controls from existing UCIs and use the combined `SelectBtn` instead.
 
-Designer/Core verification is still required: SVG data-URI rendering and full-colour artwork, native text styling and icon/text positioning, and press-reset behavior in Designer and UCI clients, HTTPS conversion from PNG/SVG/ICO sources, missing/broken/oversized images, rapid selection during downloads, preset save/reopen and recall, and receiver playback/status/Now Playing behavior.
+Designer/Core verification is still required: SVG data-URI rendering and full-colour artwork, Result Color (including alpha) and icon/text positioning, and press-reset behavior in Designer and UCI clients, HTTPS conversion from PNG/SVG/ICO sources, missing/broken/oversized images, rapid selection during downloads, preset save/reopen and recall, and receiver playback/status/Now Playing behavior.
 
 ---
 
@@ -255,16 +254,6 @@ Designer/Core verification is still required: SVG data-URI rendering and full-co
 ---
 
 ## Changelog
-
-### 3.4.0 - 2026-09-20
-
-- Reduced Search and Presets to approximately 560 × 420, with compact controls and group boxes with a corner radius of 5.
-- Centered control text while preserving label alignment.
-- Split result tiles into SVG artwork in the left quarter and native, centered station text in the right three quarters. Either area selects the station.
-- Added conservative logo-padding trimming and consistent artwork sizing with rounded white backgrounds, including the fallback icon. Artwork is inset instead of clipped.
-- Existing UCI result tiles must include both `SelectBtn` and `ResultName`; native text now supports Designer/UCI text styling.
-- Archived V3.3.0 and provided the matching V2.3.0 update for external receivers.
-- Validation: mocked Lua regression checks pass; Q-SYS Designer/Core visual and playback verification remains required.
 
 ### 3.3.0 - 2026-09-18
 
