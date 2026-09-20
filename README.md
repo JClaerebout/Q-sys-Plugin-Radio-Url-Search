@@ -241,6 +241,7 @@ Q-SYS Designer 9.13/Core verification is still required: SVG data-URI rendering 
 
 ### 2.3.0 - 2026-09-20
 
+- Removed transparent-black color overrides from ResultName so it inherits native button theme colors.
 - Reduced Search and Presets to approximately 560 × 420, with compact controls and group boxes with a corner radius of 5.
 - Centered control text while preserving label alignment.
 - Split result tiles into SVG artwork in the left quarter and native, centered station text in the right three quarters. Either area selects the station.
