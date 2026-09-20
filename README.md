@@ -206,7 +206,7 @@ embedded Media Stream Receiver -> url
 
 Selecting a slot only previews it; empty slots cannot be recalled or deleted. Recall uses the stored stream URL directly, without a Radio Browser lookup. Favicons are saved as URLs, so displaying artwork still requires network access.
 
-Preset data is held in a persistent text control within the Q-SYS design. Save your design after configuring presets. Reducing `Preset Count` hides higher slots while retaining their data; increasing it makes them available again. Verify save/reopen and Core restart behavior during testing.
+Preset data is held in a persistent text control within the Q-SYS design. Save your design after configuring presets. Reducing `Preset Count` hides higher slots while retaining their data; increasing it makes them available again.
 
 ### Station Artwork
 
@@ -217,8 +217,6 @@ Artwork buttons stay enabled to avoid Q-SYS dimming their SVGs in Live/Emulate. 
 Images above 512 KiB or 512 pixels on either axis are rejected before base64 encoding. PNG signature, chunk boundaries, header, image-data presence, and ending are checked; this is not a full PNG decoder or checksum validation. The [Q-SYS HttpClient API](https://help.qsys.com/Content/Control_Scripting/Using_Lua_in_Q-Sys/HttpClient.htm) buffers the response before calling the handler and exposes no streaming receive-size limit, so the 512 KiB check limits processing/cache memory rather than imposing a hard network receive cap. Conversion dimensions and a 10-second timeout reduce exposure. Failure messages are limited to one per 10 seconds. No artwork is downloaded when favicon pages are disabled.
 
 After upgrading, replace any UCI reference to `NowPlayingFavicon` with `StationLogo`; preset artwork changes from a text indicator to a button. Result tiles now pair `SelectBtn` (artwork) with `ResultName` (native text). Update existing UCI result tiles by placing both controls beside each other in a 1:3 width ratio.
-
-Designer/Core verification is still required: SVG data-URI rendering and full-colour artwork, native text styling and icon/text positioning, and press-reset behavior in Designer and UCI clients, HTTPS conversion from PNG/SVG/ICO sources, missing/broken/oversized images, rapid selection during downloads, preset save/reopen and recall, and receiver playback/status/Now Playing behavior.
 
 ---
 
@@ -265,7 +263,6 @@ Designer/Core verification is still required: SVG data-URI rendering and full-co
 - Added conservative logo-padding trimming and consistent artwork sizing with rounded white backgrounds, including the fallback icon. Artwork is inset instead of clipped.
 - Existing UCI result tiles must include both `SelectBtn` and `ResultName`; native text now supports Designer/UCI text styling.
 - Archived V3.3.0 and provided the matching V2.3.0 update for external receivers.
-- Validation: mocked Lua regression checks pass; Q-SYS Designer/Core visual and playback verification remains required.
 
 ### 3.3.0 - 2026-09-18
 

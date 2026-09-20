@@ -199,8 +199,6 @@ Images above 512 KiB or 512 pixels on either axis are rejected before base64 enc
 
 After upgrading, check the renamed `Enable Logo Pages` property and reselect your external URL Receiver if necessary. Replace any UCI reference to `NowPlayingFavicon` with `StationLogo`; preset artwork changes from a text indicator to a button. Result tiles now pair `SelectBtn` (artwork) with `ResultName` (native text). Update existing UCI result tiles by placing both controls beside each other in a 1:3 width ratio.
 
-Q-SYS Designer 9.13/Core verification is still required: SVG data-URI rendering and full-colour artwork, native text styling and icon/text positioning, and press-reset behavior in Designer and UCI clients, HTTPS conversion from PNG/SVG/ICO sources, missing/broken/oversized images, rapid selection during downloads, preset save/reopen and recall, and external URL Receiver playback and Now Playing behavior.
-
 ---
 
 ## Installation
@@ -248,7 +246,6 @@ Q-SYS Designer 9.13/Core verification is still required: SVG data-URI rendering 
 - Added conservative logo-padding trimming and consistent artwork sizing with rounded white backgrounds, including the fallback icon. Artwork is inset instead of clipped.
 - Existing UCI result tiles must include both `SelectBtn` and `ResultName`; native text now supports Designer/UCI text styling.
 - Retained the external receiver selector and V9.13 architecture; V2.2.0 remains archived.
-- Validation: mocked Lua regression checks pass; Q-SYS Designer/Core visual and playback verification remains required.
 
 ### 2.2.0 - 2026-09-18
 
@@ -257,7 +254,6 @@ Q-SYS Designer 9.13/Core verification is still required: SVG data-URI rendering 
 - Added Result Color for SVG text and renamed Enable Favicon Pages to Enable Logo Pages (enabled by default).
 - Added Core-side PNG downloads, local fallback artwork, response validation, caching, serialized downloads, and stale-response protection.
 - Reset the active logo when changing receivers and ignore artwork responses from the previous receiver selection.
-- Local regression tests pass; verify the final plugin in Q-SYS Designer 9.13 and on a Core before deployment.
 
 
 ### 2.1.0 - 2026-09-10
