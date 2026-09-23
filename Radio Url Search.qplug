@@ -2,7 +2,7 @@ PluginInfo = {
 	-- Use a tilde (~) to seperate the name into a folder
     Name = "Radio Url Search",
 	-- Use semantic versioning
-    Version = "3.4.0",
+    Version = "3.4.1",
 	-- Use a GUID for the Id (Note: Avoid changing the Id for a plugin once it is set)
     Id = "ec2efe7f-9127-4081-8b07-90ee9e526dda",
 	-- The square brackets allow for a multi-line string
@@ -247,6 +247,10 @@ function GetControls(props)
         })
     end
 
+    for _, name in ipairs({ "StreamTitle", "StreamUrl", "MetadataStatus" }) do
+        table.insert(ctls, { Name = name, ControlType = "Indicator", IndicatorType = "Text",
+            Count = 1, PinStyle = "Output", UserPin = true })
+    end
     return ctls
 end
 
@@ -306,15 +310,21 @@ function GetControlLayout(props)
         label("Station", 18, 128, 68, 22)
         control("StrSearch", "String Search", "Text", 90, 128, 248, 22)
         label("Results", 18, 162, 320, 18)
-        control("StrSearchResult", "String Search Result", "ListBox", 18, 184, 320, 140)
-        label("Now Playing", 18, 332, 320, 18)
+        control("StrSearchResult", "String Search Result", "ListBox", 18, 184, 320, 100)
+        label("Now Playing", 18, 290, 320, 18)
+        -- The square logo spans both text rows; leave an 8px column gap.
         control("NowPlaying", "Now Playing", "Text",
-            logoPagesEnabled and 82 or 18, 350, logoPagesEnabled and 256 or 320, 56,
+            logoPagesEnabled and 90 or 18, 310, logoPagesEnabled and 248 or 320, 24,
             { WordWrap = true })
         if logoPagesEnabled then
-            control("StationLogo", "Now Playing Logo", "Button", 18, 350, 56, 56,
+            control("StationLogo", "Now Playing Logo", "Button", 18, 310, 64, 64,
                 { Color = { 0,0,0,0 } })
         end
+
+        control("StreamTitle", "ICY~Song Title", "Text",
+            logoPagesEnabled and 90 or 18, 338, logoPagesEnabled and 248 or 320, 36,
+            { WordWrap = true })
+        control("MetadataStatus", "ICY~Status", "Text", 18, 380, 320, 22)
 
         group("Receiver", 356, 8, 196, 404)
         control("enable", "Media Stream Receiver Enable", "Button", 368, 36, 172, 24, {
@@ -930,6 +940,232 @@ function formatStationName(name)
   return string.sub(name, 1, 97) .. "..."
 end
 
+-- ICY reader: audio is discarded incrementally; only headers and metadata are retained.
+function icyUrl(url)
+  if type(url) ~= "string" or url:find("[%s%c]") then return nil end
+  local scheme, authority, path = url:match("^(https?)://([^/#?]+)(.*)$")
+  if not scheme or authority:find("@", 1, true) then return nil end
+  local host, port = authority:match("^([^:]+):(%d+)$")
+  host = host or authority
+  if host:find(":", 1, true) then return nil end
+  port = tonumber(port) or (scheme == "https" and 443 or 80)
+  if port < 1 or port > 65535 then return nil end
+  path = path:gsub("#.*$", "")
+  if path == "" then path = "/" elseif path:sub(1, 1) == "?" then path = "/" .. path end
+  return { scheme = scheme, authority = authority, host = host, port = port, path = path }
+end
+
+function parseIcyMetadata(block)
+  local fields = {}
+  block = block:gsub("%z+$", "")
+  -- A quote terminates a value only when followed by a field separator.
+  for key, value in block:gmatch("([%w_]+)%s*=%s*'(.-)'%s*;") do
+    fields[key:lower()] = value
+  end
+  return fields
+end
+
+icyGeneration = 0
+icySelectedUrl = nil
+icyEnabled = nil
+icySocket = nil -- Keep the active socket reachable for Q-SYS garbage collection.
+icyWorkingUrl = nil -- Only retained for the current station and enable session.
+
+function stopIcy()
+  icyGeneration = icyGeneration + 1
+  local old = icySocket
+  icySocket = nil
+  if old then old:Disconnect() end
+end
+
+function startIcy(url, redirects, cachedAttempt)
+  stopIcy()
+  local generation = icyGeneration
+  local target = icyUrl(url)
+  if not target then
+    Controls.MetadataStatus.String = "Unsupported metadata URL"
+    return
+  end
+  if not TcpSocket then
+    Controls.MetadataStatus.String = "Metadata socket unavailable"
+    return
+  end
+  local socket = target.scheme == "https" and TcpSocket.NewTls() or TcpSocket.New()
+  icySocket = socket
+  socket.ReadTimeout = 20
+  socket.WriteTimeout = 10
+  socket.ReconnectTimeout = 0
+  local buffer, headersDone, interval, remaining, metadataLength = "", false, nil, nil, nil
+  local metadata, chunked, chunkRemaining, chunkEnding = "", false, nil, false
+  local finished = false
+  local function active() return not finished and generation == icyGeneration end
+  local function finish(message, retry)
+    if not active() then return end
+    finished = true
+    Controls.StreamTitle.String = ""
+    Controls.StreamUrl.String = ""
+    Controls.MetadataStatus.String = message
+    socket:Disconnect()
+    -- A direct URL can expire or stop resolving. Re-discover it through the
+    -- selected URL after one failed cached attempt, including HTTP failures.
+    if cachedAttempt then icyWorkingUrl, retry = nil, true end
+    if retry then
+      Timer.CallAfter(function()
+        if generation == icyGeneration then
+          local cached = icyWorkingUrl ~= nil and icyWorkingUrl ~= icySelectedUrl
+          startIcy(cached and icyWorkingUrl or icySelectedUrl, 0, cached)
+        end
+      end, 15)
+    end
+  end
+  local function audio(data)
+    local pos = 1
+    while pos <= #data and active() do
+      if remaining > 0 then
+        local count = math.min(remaining, #data - pos + 1)
+        remaining, pos = remaining - count, pos + count
+      elseif metadataLength == nil then
+        metadataLength = data:byte(pos) * 16
+        metadata, pos = "", pos + 1
+        if metadataLength == 0 then remaining, metadataLength = interval, nil end
+      else
+        local count = math.min(metadataLength - #metadata, #data - pos + 1)
+        metadata, pos = metadata .. data:sub(pos, pos + count - 1), pos + count
+        if #metadata == metadataLength then
+          local fields = parseIcyMetadata(metadata)
+          if fields.streamtitle ~= nil then Controls.StreamTitle.String = fields.streamtitle end
+          if fields.streamurl ~= nil then Controls.StreamUrl.String = fields.streamurl end
+          Controls.MetadataStatus.String = "Receiving ICY metadata"
+          remaining, metadataLength, metadata = interval, nil, ""
+        end
+      end
+    end
+  end
+  local function receive(data)
+    buffer = buffer .. data
+    if not headersDone then
+      local boundary = buffer:find("\r\n\r\n", 1, true)
+      if not boundary then
+        if #buffer > 16384 then finish("Metadata headers too large", false) end
+        return
+      end
+      if boundary > 16384 then finish("Metadata headers too large", false); return end
+      local header = buffer:sub(1, boundary - 1)
+      buffer = buffer:sub(boundary + 4)
+      local status = tonumber(header:match("^HTTP/%d%.%d (%d+)") or header:match("^ICY (%d+)"))
+      local fields = {}
+      for key, value in header:gmatch("\r\n([^:%s]+):%s*([^\r\n]*)") do
+        fields[key:lower()] = value:match("^(.-)%s*$")
+      end
+      if status == 301 or status == 302 or status == 303 or status == 307 or status == 308 then
+        local location = fields.location
+        if not location or (redirects or 0) >= 5 then finish("Metadata redirect failed", false); return end
+        if location:sub(1, 2) == "//" then location = target.scheme .. ":" .. location
+        elseif not location:match("^%a[%w+.-]*:") then
+          local base = target.scheme .. "://" .. target.authority
+          if location:sub(1, 1) == "/" then location = base .. location
+          elseif location:sub(1, 1) == "?" then location = base .. target.path:gsub("%?.*$", "") .. location
+          else location = base .. (target.path:match("^([^?]*/)") or "/") .. location end
+        end
+        startIcy(location, (redirects or 0) + 1, cachedAttempt)
+        return
+      end
+      if status ~= 200 then finish("Metadata HTTP error " .. tostring(status), true); return end
+      interval = tonumber(fields["icy-metaint"])
+      if not interval or interval < 1 or interval > 16777216 or interval % 1 ~= 0 then
+        finish("ICY metadata unavailable", false); return
+      end
+      if fields["content-encoding"] and fields["content-encoding"]:lower() ~= "identity" then
+        finish("Unsupported metadata encoding", false); return
+      end
+      local transfer = (fields["transfer-encoding"] or ""):lower()
+      if transfer ~= "" and transfer ~= "identity" and transfer ~= "chunked" then
+        finish("Unsupported metadata transfer", false); return
+      end
+      chunked = transfer == "chunked"
+      remaining, headersDone = interval, true
+      icyWorkingUrl = url
+      cachedAttempt = false -- A validated ICY response makes this endpoint usable again.
+      Controls.MetadataStatus.String = "Waiting for ICY title"
+    end
+    if not chunked then audio(buffer); buffer = ""; return end
+    while active() do
+      if chunkEnding then
+        if #buffer < 2 then return end
+        if buffer:sub(1, 2) ~= "\r\n" then finish("Invalid metadata chunk", true); return end
+        buffer, chunkEnding, chunkRemaining = buffer:sub(3), false, nil
+      elseif chunkRemaining == nil then
+        local eol = buffer:find("\r\n", 1, true)
+        if not eol then
+          if #buffer > 1024 then finish("Invalid metadata chunk", false) end
+          return
+        end
+        local line = buffer:sub(1, eol - 1)
+        local hex = line:match("^(%x+)$") or line:match("^(%x+);.*$")
+        chunkRemaining = hex and tonumber(hex, 16)
+        if not chunkRemaining or chunkRemaining > 16777216 then finish("Invalid metadata chunk", false); return end
+        buffer = buffer:sub(eol + 2)
+        if chunkRemaining == 0 then finish("Metadata stream ended; retrying", true); return end
+      else
+        if #buffer == 0 then return end
+        local count = math.min(chunkRemaining, #buffer)
+        audio(buffer:sub(1, count))
+        buffer, chunkRemaining = buffer:sub(count + 1), chunkRemaining - count
+        if chunkRemaining == 0 then chunkEnding = true end
+      end
+    end
+  end
+  Controls.MetadataStatus.String = "Connecting for ICY metadata"
+  socket.EventHandler = function(sock, event, err)
+    if not active() then return end
+    if event == TcpSocket.Events.Connected then
+      sock:Write("GET " .. target.path .. " HTTP/1.1\r\nHost: " .. target.authority
+        .. "\r\nUser-Agent: Q-SYS-Radio-Search\r\nIcy-MetaData: 1\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n")
+    elseif event == TcpSocket.Events.Data then
+      -- Parsing can disconnect this socket (for example, on an HTTP redirect).
+      -- Check active before touching it again. Read returns up to the requested
+      -- bytes, so there is no need to query BufferLength on TCP/TLS sockets.
+      while active() do
+        local data = sock:Read(8192)
+        if not data or data == "" then break end
+        receive(data)
+        if #data < 8192 then break end
+      end
+    elseif event == TcpSocket.Events.Closed or event == TcpSocket.Events.Error or event == TcpSocket.Events.Timeout then
+      local reason = event == TcpSocket.Events.Timeout and "timeout"
+        or (event == TcpSocket.Events.Error and "socket error" or "remote closed")
+      if err and tostring(err) ~= "" then reason = reason .. ": " .. tostring(err) end
+      local endpoint = target.scheme .. "://" .. target.authority
+      local stage = (redirects or 0) > 0 and "redirect destination"
+        or (url ~= icySelectedUrl and "last working stream" or "selected stream")
+      print("ICY metadata: " .. endpoint .. " (" .. stage .. "): " .. reason
+        .. (headersDone and " after headers" or " before headers") .. "; retrying in 15s")
+      finish("Metadata disconnected: " .. target.host .. " (" .. reason .. "); retrying", true)
+    end
+  end
+  socket:Connect(target.host, target.port)
+  Timer.CallAfter(function()
+    if active() and not headersDone then finish("Metadata connection timed out; retrying", true) end
+  end, 20)
+end
+
+function syncIcy()
+  local url = selectedreceiver and selectedreceiver.url and selectedreceiver.url.String or ""
+  local enabled = selectedreceiver and selectedreceiver.enable and selectedreceiver.enable.Boolean or false
+  if url == icySelectedUrl and enabled == icyEnabled then return end
+  icySelectedUrl, icyEnabled = url, enabled
+  icyWorkingUrl = nil
+  stopIcy()
+  Controls.StreamTitle.String, Controls.StreamUrl.String = "", ""
+  if not enabled or url == "" then Controls.MetadataStatus.String = "Metadata idle"
+  else startIcy(url, 0) end
+end
+
+function watchIcy()
+  syncIcy()
+  Timer.CallAfter(watchIcy, 1)
+end
+
 function tuneStation(station)
   if not station or type(station.url) ~= "string" or station.url == "" then
     return false
@@ -948,6 +1184,7 @@ function tuneStation(station)
   currentStation = { url = station.url, name = station.name or station.url, favicon = station.favicon or "" }
   Controls.NowPlaying.String = formatStationName(currentStation.name)
   setNowPlayingFavicon(currentStation.favicon)
+  syncIcy()
   return true
 end
 
@@ -1064,36 +1301,39 @@ function funcGetRadio(requestId, tbl, code, data, err, headers)
     local radios = rapidjson.decode(data)
     if not radios then return end
 
-    local stationMap = {}
     stations = {}
     local choices = {}
+    local indexByUrl = {}
 
     for _, station in ipairs(radios) do
         local name = station.name or "Unknown"
-        local url  = station.url_resolved or station.url
-        local clickcount = station.clickcount or 0
+        local url = station.url_resolved
+        if type(url) ~= "string" or url == "" then url = station.url end
+        local clickcount = tonumber(station.clickcount) or 0
+        local votes = tonumber(station.votes) or 0
         local favicon = station.favicon or ""
         local codec = string.upper(station.codec or "")
 
-        local key = string.lower(name)
-
-        -- Only keep playable MP3/MPEG stations
-        if codec == "MP3" or codec == "MPEG" then
-            if not stationMap[key] or clickcount > stationMap[key].clickcount then
-                stationMap[key] = {
+        -- Preserve exact paths and query parameters: they can identify different streams.
+        if (codec == "MP3" or codec == "MPEG") and type(url) == "string" and url ~= "" then
+            local index = indexByUrl[url]
+            local existing = index and stations[index]
+            if not existing or clickcount > existing.clickcount
+                or (clickcount == existing.clickcount and votes > existing.votes) then
+                local entry = {
                     name = name,
                     url = url,
                     clickcount = clickcount,
+                    votes = votes,
                     favicon = favicon or ""
                 }
+                if index then
+                    stations[index] = entry
+                else
+                    table.insert(stations, entry)
+                    indexByUrl[url] = #stations
+                end
             end
-        end
-    end
-
-    -- Convert map to array, only stations with playable URL
-    for _, s in pairs(stationMap) do
-        if s.url then
-            table.insert(stations, s)
         end
     end
 
@@ -1150,7 +1390,7 @@ function funcSearchRadio()
     end
 
     local url = string.format(
-        "https://de1.api.radio-browser.info/json/stations/search?name=%s%s&limit=200&hidebroken=true&order=name",
+        "https://de1.api.radio-browser.info/json/stations/search?name=%s%s&codec=mp3&limit=200&hidebroken=true&order=name",
         search,
         countryFilter
     )
@@ -1219,11 +1459,8 @@ Controls.Country_Code.EventHandler = function(ctrl)
 end
 
 Controls.StrSearchResult.EventHandler = function()
-  for i,v in ipairs(Controls.StrSearchResult.Choices) do
-    if stations[i] and Controls.StrSearchResult.String == stations[i].displayName then
-      selectStation(i)
-    end
-  end
+  -- Select by row so identical names can point to different streams.
+  selectStation(Controls.StrSearchResult.Value)
 end
 
 if Controls.SelectBtn then
@@ -1299,6 +1536,7 @@ function funcGetCurrentStation()
 end
 
 loadPresets()
+watchIcy()
 
 Controls.StrSearch.String = ""
 

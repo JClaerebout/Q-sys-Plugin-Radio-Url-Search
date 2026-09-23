@@ -32,6 +32,7 @@ For **Q-SYS Designer V9.13**, use [plugin V2.3.0](Previous_releases/Q-sys-Plugin
 - Enable or disable the embedded receiver with a Boolean toggle
 - Control stereo gain, polarity, and mute with peak-level metering
 - Show the selected station as now playing
+- Retrieve ICY song titles from the active stream and display them below the station name
 - Restore the now-playing station name from the current Media Stream Receiver stream URL
 - Save and recall station presets (URL, name, and favicon) from a separate Presets page
 - Configure between 1 and 40 preset slots, with Save, Recall, and Delete buttons
@@ -43,7 +44,7 @@ For **Q-SYS Designer V9.13**, use [plugin V2.3.0](Previous_releases/Q-sys-Plugin
 | Property | Value |
 | --- | --- |
 | Name | Radio Url Search |
-| Version | 3.4.0 |
+| Version | 3.4.1 |
 | Author | Jens Claerebout |
 | Protocol | HTTPS / Radio Browser API |
 | Embedded Q-SYS Component | Media Stream Receiver |
@@ -75,6 +76,9 @@ For **Q-SYS Designer V9.13**, use [plugin V2.3.0](Previous_releases/Q-sys-Plugin
 | Control | Type | Description |
 | --- | --- | --- |
 | `NowPlaying` | Text Indicator | Shows the selected or restored station name |
+| `StreamTitle` | Text Indicator | ICY `StreamTitle`, usually artist and song title, exactly as supplied by the station |
+| `StreamUrl` | Text Indicator | ICY `StreamUrl` metadata value, when supplied (not the receiver URL) |
+| `MetadataStatus` | Text Indicator | ICY connection, availability, and error feedback |
 | `ReceiverStatus` | Status Indicator | Mirrors the embedded Media Stream Receiver status |
 
 #### Receiver Controls
@@ -128,7 +132,7 @@ The plugin UI always contains Search and Presets pages. When `Enable Logo Pages`
 
 Search and Presets use an approximately 560 × 420 layout with compact 12-point labels, aligned fields, and thin group borders with a corner radius of 5. Result pages use the same border styling with tighter spacing between station tiles.
 
-Station artwork fits within a consistent 56 × 56 area on all pages, preserving its proportions. The image service conservatively trims uniform outer padding before resizing so padded logos fill more of the available space. Logos sit inside a small safety margin on a rounded white tile; the artwork itself is not clipped. Transparent areas show the white tile, and backgrounds within the logo itself are retained. Unusual shapes or nonuniform padding can still produce differences in apparent size.
+Now-playing artwork uses a 64 × 64 area spanning the station and song-title rows, with an 8-pixel gap to the text. Other station artwork retains its existing sizing. Artwork preserves its proportions. The image service conservatively trims uniform outer padding before resizing so padded logos fill more of the available space. Logos sit inside a small safety margin on a rounded white tile; the artwork itself is not clipped. Transparent areas show the white tile, and backgrounds within the logo itself are retained. Unusual shapes or nonuniform padding can still produce differences in apparent size.
 
 ---
 
@@ -152,6 +156,9 @@ Searches are sent with:
 - selected country code from `Country_Code`
 - up to the configured number of displayed results, selected from a larger API response
 - broken stations hidden
+- MP3 codec requested with `codec=mp3`
+- duplicate resolved stream URLs merged, keeping the highest click count and then highest votes; empty resolved URLs fall back to the original URL
+- different stream URLs retained even when station names match; URL paths and query parameters are preserved
 - displayed results ranked by Radio Browser click count
 
 ---
@@ -194,6 +201,12 @@ When a station is selected, the plugin writes its stream URL to the embedded rec
 embedded Media Stream Receiver -> url
 ```
 
+### ICY Now-Playing Metadata
+
+Displays the selected stream's song title below the station name. `StreamTitle`, `StreamUrl`, and `MetadataStatus` are available as output pins. Metadata follows station selections and presets, with automatic reconnects after connection failures.
+
+Requires an HTTP(S) stream that provides ICY metadata and uses an additional stream connection. Missing metadata does not affect audio playback. Test on a Core; Designer Emulate may encounter DNS or TLS failures.
+
 ### Station Presets
 
 1. Play a station from Search or a Results page.
@@ -208,13 +221,9 @@ Preset data is held in a persistent text control within the Q-SYS design. Save y
 
 ### Station Artwork
 
-When favicon pages are enabled, the Core downloads artwork using `HttpClient.Download` through `images.weserv.nl`, requesting a PNG fitted within 300 × 300 pixels. Each PNG is base64-encoded inside an SVG `<image>` with `preserveAspectRatio="xMidYMid meet"`; the complete SVG is then base64-encoded into the button Legend's JSON `IconData`, with `DrawChrome=false`. No EzSVG dependency is needed. UCI clients receive the embedded artwork rather than downloading favicon URLs themselves.
+When logo pages are enabled, station logos appear in search results, Now Playing, and preset previews. Artwork is downloaded through `images.weserv.nl` and embedded for UCI display. Missing or invalid images show a radio icon. Press either the artwork or station name in a result tile to select it.
 
-Artwork buttons stay enabled to avoid Q-SYS dimming their SVGs in Live/Emulate. The Now Playing and preset artwork handlers immediately clear presses without tuning. Each result tile has SVG artwork in the left quarter and a native station-name button in the right three quarters. Station names are centered and wrap within the text area. Use the normal Designer/UCI text settings to customize their appearance. Pressing either area selects the station. Missing or invalid favicon URLs, failed downloads, non-200 responses, unexpected Content-Type, empty data, and structurally invalid PNGs show a locally generated radio icon. Downloads are serialized with active-station artwork taking priority over pending preset and result artwork. Selection changes invalidate old responses and replace pending work; the last successful logo/URL is cached, with a separate cache for the active station. Repeated Now Playing updates for the same station/favicon do not retry downloads, including failed downloads. Select another station and return to retry a failure.
-
-Images above 512 KiB or 512 pixels on either axis are rejected before base64 encoding. PNG signature, chunk boundaries, header, image-data presence, and ending are checked; this is not a full PNG decoder or checksum validation. The [Q-SYS HttpClient API](https://help.qsys.com/Content/Control_Scripting/Using_Lua_in_Q-Sys/HttpClient.htm) buffers the response before calling the handler and exposes no streaming receive-size limit, so the 512 KiB check limits processing/cache memory rather than imposing a hard network receive cap. Conversion dimensions and a 10-second timeout reduce exposure. Failure messages are limited to one per 10 seconds. No artwork is downloaded when favicon pages are disabled.
-
-After upgrading, replace any UCI reference to `NowPlayingFavicon` with `StationLogo`; preset artwork changes from a text indicator to a button. Result tiles now pair `SelectBtn` (artwork) with `ResultName` (native text). Update existing UCI result tiles by placing both controls beside each other in a 1:3 width ratio.
+For existing UCIs, replace `NowPlayingFavicon` with `StationLogo` and use a button for preset artwork. Place `SelectBtn` and `ResultName` side by side in a 1:3 width ratio.
 
 ---
 
@@ -251,6 +260,15 @@ After upgrading, replace any UCI reference to `NowPlayingFavicon` with `StationL
 ---
 
 ## Changelog
+
+### 3.4.1 - 2026-09-23
+
+- Added ICY metadata retrieval for the active HTTP/HTTPS stream, with song title display and `StreamTitle`, `StreamUrl`, and `MetadataStatus` output pins.
+- Added incremental metadata parsing, chunked transfer support, redirects, stale-response protection, and automatic reconnects using the last working stream URL with fallback to the original URL.
+- Added hostname and connection-stage diagnostics for metadata failures. Live Core operation has been more reliable than Designer Emulate during testing.
+- Added `codec=mp3` to station searches and merged duplicate resolved stream URLs, keeping the highest click count and then highest votes.
+- Changed result-list selection to use the selected row so stations with identical names and different URLs remain selectable.
+- Aligned the now-playing logo with the station and song-title rows.
 
 ### 3.4.0 - 2026-09-20
 

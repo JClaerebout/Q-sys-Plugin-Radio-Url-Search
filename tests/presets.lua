@@ -68,7 +68,7 @@ end
 local a = { url = "https://radio.test/a", name = "Station A", favicon = "https://radio.test/a.png" }
 local b = { url = "https://radio.test/b", name = "Station B", favicon = "" }
 boot(10)
-assert(PluginInfo.Version == "3.4.0")
+assert(PluginInfo.Version == "3.4.1")
 assert(#Controls.PresetList.Choices == 10)
 assert(Controls.PresetRecall.IsDisabled)
 Controls.PresetSave.EventHandler()
@@ -326,3 +326,154 @@ for _, page in ipairs({1, #GetPages(Properties)}) do
     assert(graphics[2].HTextAlign == "Left")
 end
 print("PASS: native station text, quarter-width artwork, either-side selection, paired visibility and alignment")
+
+-- ICY metadata transport regression tests.
+boot(10)
+local duplicateResults = {
+    { name = "Alias", url_resolved = "https://radio.test/live", codec = "MP3", clickcount = 1, votes = 999 },
+    { name = "Main", url_resolved = "https://radio.test/live", codec = "MP3", clickcount = 10, votes = 2 },
+    { name = "Preferred", url = "https://redirect.test/live", url_resolved = "https://radio.test/live", codec = "MP3", clickcount = 10, votes = 3 },
+    { name = "Preferred", url_resolved = "", url = "https://radio.test/live?variant=2", codec = "MP3", clickcount = 5 },
+    { name = "Another alias", url = "https://radio.test/live", codec = "MP3", clickcount = 9, votes = 999 },
+    { name = "Different path", url = "https://radio.test/Live", codec = "MP3", clickcount = 2 },
+}
+funcGetRadio(searchRequestId, { Url = "duplicate test" }, 200, json.encode(duplicateResults), nil, {})
+assert(#stations == 3 and #Controls.StrSearchResult.Choices == 3)
+assert(stations[1].name == "Preferred" and stations[1].votes == 3)
+assert(stations[1].url == "https://radio.test/live")
+assert(stations[2].url == "https://radio.test/live?variant=2")
+assert(stations[3].url == "https://radio.test/Live")
+Controls.StrSearchResult.Value = 2
+Controls.StrSearchResult.EventHandler()
+assert(_Media_Stream_Receiver.url.String == "https://radio.test/live?variant=2")
+funcSearchRadio()
+assert(requests[#requests].Url:find("&codec=mp3", 1, true))
+print("PASS: URL deduplication, click/vote ranking, URL fallback, duplicate-name row selection")
+
+local sockets, timers = {}, {}
+Timer.CallAfter = function(fn, delay) timers[#timers + 1] = { fn = fn, delay = delay } end
+TcpSocket = { Events = { Connected = "connected", Data = "data", Closed = "closed", Error = "error", Timeout = "timeout" } }
+local function newSocket(tls)
+  local sock = setmetatable({ buffer = "", tls = tls }, {
+    __index = function(_, key)
+      if key == "BufferLength" then error("BufferLength must not be queried") end
+    end,
+  })
+  function sock:Connect(host, port) self.host, self.port = host, port end
+  function sock:Disconnect() self.closed = true; self.EventHandler(self, "closed") end
+  function sock:Write(data) self.request = data end
+  function sock:Read(count)
+    assert(not self.closed, "Read after disconnect")
+    local data = self.buffer:sub(1, count)
+    self.buffer = self.buffer:sub(count + 1)
+    return data
+  end
+  sockets[#sockets + 1] = sock
+  return sock
+end
+TcpSocket.New = function() return newSocket(false) end
+TcpSocket.NewTls = function() return newSocket(true) end
+local function feed(sock, data, size)
+  for pos = 1, #data, size or #data do
+    sock.buffer = sock.buffer .. data:sub(pos, pos + (size or #data) - 1)
+    sock.EventHandler(sock, "data")
+  end
+end
+local function select(url)
+  _Media_Stream_Receiver.url.String = url
+  _Media_Stream_Receiver.enable.Boolean = true
+  syncIcy()
+  local sock = sockets[#sockets]
+  sock.EventHandler(sock, "connected")
+  return sock
+end
+local function block(title)
+  local value = "StreamTitle='" .. title .. "';StreamUrl='https://example.test/song';"
+  local units = math.ceil(#value / 16)
+  return "abcd" .. string.char(units) .. value .. string.rep("\0", units * 16 - #value)
+end
+assert(not icyUrl("http://bad.test/\r\ninjected"))
+assert(not icyUrl("file:///test"))
+assert(icyUrl("https://radio.test?token=a").path == "/?token=a")
+local first = select("https://radio.test/live")
+assert(first.tls and first.port == 443)
+assert(first.request:find("Icy-MetaData: 1", 1, true))
+feed(first, "ICY 200 OK\r\nIcY-MeTaInT: 4\r\n\r\n" .. block("Artist - Don't stop; now"), 1)
+assert(Controls.StreamTitle.String == "Artist - Don't stop; now")
+assert(Controls.StreamUrl.String == "https://example.test/song")
+feed(first, "abcd\0", 1)
+assert(Controls.StreamTitle.String == "Artist - Don't stop; now")
+feed(first, block(""), 3)
+assert(Controls.StreamTitle.String == "")
+local second = select("http://radio.test:8000/next")
+assert(first.closed and second.port == 8000 and not second.tls)
+feed(first, block("stale"))
+assert(Controls.StreamTitle.String == "")
+local body = block("Chunked title")
+local chunks = ""
+for pos = 1, #body, 3 do
+  local part = body:sub(pos, pos + 2)
+  chunks = chunks .. string.format("%x;ext=1\r\n", #part) .. part .. "\r\n"
+end
+feed(second, "HTTP/1.1 200 OK\r\nicy-metaint: 4\r\nTransfer-Encoding: chunked\r\n\r\n" .. chunks, 1)
+assert(Controls.StreamTitle.String == "Chunked title")
+second.EventHandler(second, "timeout")
+assert(Controls.StreamTitle.String == "" and second.closed)
+local retry = timers[#timers]
+assert(retry.delay == 15)
+local third = select("http://radio.test/redirect")
+local count = #sockets
+retry.fn()
+assert(#sockets == count) -- An old reconnect must not retune a newer station.
+feed(third, "HTTP/1.1 302 Found\r\nLocation: /live\r\n\r\n")
+local redirected = sockets[#sockets]
+redirected.EventHandler(redirected, "connected")
+assert(third.closed and redirected.request:find("GET /live HTTP/1.1", 1, true))
+feed(redirected, "HTTP/1.1 200 OK\r\nContent-Type: audio/mpeg\r\n\r\n")
+assert(redirected.closed and Controls.MetadataStatus.String == "ICY metadata unavailable")
+local fourth = select("http://radio.test/stop")
+_Media_Stream_Receiver.enable.Boolean = false
+syncIcy()
+assert(fourth.closed and Controls.MetadataStatus.String == "Metadata idle")
+local fifth = select("http://radio.test/malformed")
+feed(fifth, "HTTP/1.1 200 OK\r\nicy-metaint: -1\r\n\r\n")
+assert(fifth.closed)
+local sixth = select("http://radio.test/large")
+feed(sixth, string.rep("x", 17000), 1024)
+assert(sixth.closed and Controls.MetadataStatus.String == "Metadata headers too large")
+local seventh = select("http://radio.test/full-read")
+local redirect = "HTTP/1.1 302 Found\r\nLocation: /other\r\n\r\n"
+-- A full-size read must not cause another socket access after a redirect.
+feed(seventh, redirect .. string.rep("x", 8192 - #redirect))
+assert(seventh.closed)
+local eighth = select("http://radio.test/read-many")
+feed(eighth, "HTTP/1.1 200 OK\r\nicy-metaint: 4\r\n\r\n" .. string.rep("abcd\0", 4000) .. block("After many reads"))
+assert(Controls.StreamTitle.String == "After many reads")
+eighth.EventHandler(eighth, "error", "TLS handshake failed")
+assert(Controls.MetadataStatus.String:find("TLS handshake failed", 1, true))
+-- Willy's observed HTTPS redirect and ICY response format (2026-09-23).
+local willy = select("https://streams.radio.dpgmedia.cloud/redirect/willy_be/mp3")
+assert(willy.tls and willy.host == "streams.radio.dpgmedia.cloud")
+feed(willy, "HTTP/1.1 302 Found\r\nLocation: https://audio-streaming.willy.radio/willy.mp3\r\nContent-Length: 0\r\n\r\n", 17)
+local willyStream = sockets[#sockets]
+assert(willy.closed and willyStream.tls and willyStream.host == "audio-streaming.willy.radio")
+willyStream.EventHandler(willyStream, "connected")
+assert(willyStream.request:find("GET /willy.mp3 HTTP/1.1\r\nHost: audio-streaming.willy.radio\r\n", 1, true))
+local willyMetadata = "StreamTitle='FREE - All Right Now';StreamUrl='';"
+local willyUnits = math.ceil(#willyMetadata / 16)
+feed(willyStream, "HTTP/1.0 200 OK\r\nContent-Type: audio/mpeg\r\nicy-br: 128\r\nicy-metaint: 1024\r\n\r\n"
+  .. string.rep("a", 1024) .. string.char(willyUnits) .. willyMetadata
+  .. string.rep("\0", willyUnits * 16 - #willyMetadata), 37)
+assert(Controls.StreamTitle.String == "FREE - All Right Now" and Controls.StreamUrl.String == "")
+-- Reconnect directly to a validated endpoint; rediscover after a cached DNS failure.
+willyStream.EventHandler(willyStream, "closed")
+assert(timers[#timers].delay == 15)
+timers[#timers].fn()
+local cachedStream = sockets[#sockets]
+assert(cachedStream.host == "audio-streaming.willy.radio" and cachedStream.tls)
+cachedStream.EventHandler(cachedStream, "error", "non-recoverable failure in name resolution")
+assert(icyWorkingUrl == nil)
+timers[#timers].fn()
+assert(sockets[#sockets].host == "streams.radio.dpgmedia.cloud")
+assert(sockets[#sockets].tls)
+print("ICY metadata tests passed (including Willy HTTPS redirect and 1024-byte interval)")
